@@ -1,9 +1,8 @@
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from app.database.connection import Base  # ชี้ไปที่โฟลเดอร์ database ที่มีจริง
+from app.database.connection import Base
 
-# ฟังก์ชันดึงเวลาปัจจุบันของไทย (UTC+7)
 def get_thai_time():
     return datetime.now(timezone(timedelta(hours=7)))
 
@@ -20,6 +19,6 @@ class Maintenance(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=get_thai_time)
 
-    # Relationships ดึงข้อมูลทิศทางเดียว
+    # Relationships
     asset = relationship("Asset")
     reporter = relationship("User")

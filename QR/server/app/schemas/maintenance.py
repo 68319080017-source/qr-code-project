@@ -20,7 +20,7 @@ class MaintenanceUpdate(BaseModel):
 
 class Maintenance(MaintenanceBase):
     id: int
-    reporter_id: int
+    reporter_id: Optional[int] = None  # 🟢 แก้ตรงนี้ให้เป็น Optional เพื่อรองรับค่า Null/None
     created_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 

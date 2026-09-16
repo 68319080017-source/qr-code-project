@@ -24,7 +24,8 @@ def read_maintenance_records(
         if asset_id is not None:
             stmt = stmt.where(MaintenanceModel.asset_id == asset_id)
         
-        stmt = stmt.offset(skip).limit(limit)
+        # 🟢 เรียงลำดับจากล่าสุดขึ้นก่อน จะได้เห็นรายการแจ้งซ่อมทันที
+        stmt = stmt.order_by(MaintenanceModel.id.desc()).offset(skip).limit(limit)
         records = db.execute(stmt).scalars().all()
         return records
     except Exception as e:
@@ -37,23 +38,27 @@ def create_maintenance(
     maintenance_in: MaintenanceCreate,
 ) -> Any:
     try:
+        # 1. ค้นหาด้วย Asset ID ก่อน
         stmt = select(Asset).where(Asset.id == maintenance_in.asset_id)
         asset = db.execute(stmt).scalar_one_or_none()
 
+        # 2. ถ้าไม่เจอ ให้หาด้วย asset_code (รองรับทั้งเติม 0 สี่หลัก และสามหลัก)
         if not asset:
-            stmt_code = select(Asset).where(Asset.asset_code == str(maintenance_in.asset_id).zfill(3))
+            code_str = str(maintenance_in.asset_id)
+            stmt_code = select(Asset).where(
+                (Asset.asset_code == code_str) | 
+                (Asset.asset_code == code_str.zfill(4)) | 
+                (Asset.asset_code == code_str.zfill(3))
+            )
             asset = db.execute(stmt_code).scalar_one_or_none()
 
         if not asset:
             raise HTTPException(status_code=404, detail="ไม่พบข้อมูลครุภัณฑ์ในระบบ")
 
-        # 🟢 ถ้ามี User ในระบบค่อยดึง id มาใช้ ถ้าไม่มีให้เป็น None (ไม่ใส่เลข 1 เพื่อแก้ปัญหา ForeignKeyViolation)
-        default_user = db.execute(select(User)).scalars().first()
-        reporter_id = default_user.id if default_user else None
-
+        # 🟢 ปล่อย reporter_id เป็น None สำหรับคนทั่วไปที่สแกนจากมือถือ
         db_obj = MaintenanceModel(
             asset_id=asset.id,
-            reporter_id=reporter_id,
+            reporter_id=None,
             reporter_name=maintenance_in.reporter_name or "ประชาชนทั่วไป",
             issue_description=maintenance_in.issue_description,
             urgency=maintenance_in.urgency or "Normal",
@@ -62,6 +67,7 @@ def create_maintenance(
         )
         db.add(db_obj)
 
+        # อัปเดตสถานะของ Asset เป็นส่งซ่อม
         asset.status = "ส่งซ่อม"
 
         db.commit()
