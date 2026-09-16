@@ -3,6 +3,7 @@ uvicorn
 sqlalchemy
 pydantic
 pydantic[email]
+pydantic-settings
 email-validator
 jinja2
 python-multipart
