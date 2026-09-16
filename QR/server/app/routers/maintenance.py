@@ -47,8 +47,9 @@ def create_maintenance(
         if not asset:
             raise HTTPException(status_code=404, detail="ไม่พบข้อมูลครุภัณฑ์ในระบบ")
 
+        # 🟢 ถ้ามี User ในระบบค่อยดึง id มาใช้ ถ้าไม่มีให้เป็น None (ไม่ใส่เลข 1 เพื่อแก้ปัญหา ForeignKeyViolation)
         default_user = db.execute(select(User)).scalars().first()
-        reporter_id = default_user.id if default_user else 1
+        reporter_id = default_user.id if default_user else None
 
         db_obj = MaintenanceModel(
             asset_id=asset.id,
