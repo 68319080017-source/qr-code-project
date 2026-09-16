@@ -8,7 +8,7 @@
         <h4 class="fw-bold mb-1 text-white"><i class="fa-solid fa-users-gear me-2 text-info"></i>สิทธิ์ผู้ใช้งานระบบ</h4>
         <p class="mb-0 text-muted">จัดการบัญชีผู้ใช้งาน และกำหนดสิทธิ์การเข้าถึงข้อมูล</p>
     </div>
-    <!-- ผูกปุ่มเพิ่มผู้ใช้งาน -->
+    <!-- ปุ่มเพิ่มผู้ใช้งาน -->
     <button type="button" onclick="openAddModal()" class="btn btn-info text-white fw-bold px-3">
         <i class="fa-solid fa-user-plus me-2"></i>เพิ่มผู้ใช้งาน
     </button>
@@ -31,9 +31,9 @@
                 {% if users %}
                     {% for u in users %}
                     <tr>
-                        <td class="fw-bold">{{ u.full_name if u.full_name else (u.name if u.name else 'ผู้ใช้งาน') }}</td>
-                        <td>{{ u.email if u.email else (u.username if u.username else '-') }}</td>
-                        <td>{{ u.department if u.department else '-' }}</td>
+                        <td class="fw-bold">{{ u.full_name or u.name or 'ผู้ใช้งาน' }}</td>
+                        <td>{{ u.email or u.username or '-' }}</td>
+                        <td>{{ u.department or '-' }}</td>
                         <td>
                             {% if u.role in ['Administrator', 'admin', 'Admin'] %}
                                 <span class="badge bg-danger">Administrator</span>
@@ -43,10 +43,21 @@
                         </td>
                         <td><span class="badge bg-success">เปิดใช้งาน</span></td>
                         <td class="text-center">
+                            <!-- ใช้ Data Attributes เพื่อป้องกันการหลุด Single Quote ใน JS -->
                             <button type="button" 
-                                    onclick="openEditModal('{{ u.id }}', '{{ u.full_name or u.name or '' }}', '{{ u.email or u.username or '' }}', '{{ u.department or '' }}', '{{ u.role or 'Staff User' }}')" 
-                                    class="btn btn-sm btn-outline-info me-1">
+                                    class="btn btn-sm btn-outline-info me-1 btn-edit"
+                                    data-id="{{ u.id }}"
+                                    data-name="{{ u.full_name or u.name or '' }}"
+                                    data-email="{{ u.email or u.username or '' }}"
+                                    data-dept="{{ u.department or '' }}"
+                                    data-role="{{ u.role or 'Staff User' }}"
+                                    onclick="handleEditClick(this)">
                                 <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger"
+                                    onclick="deleteUser('{{ u.id }}', '{{ u.full_name or u.name or '' }}')">
+                                <i class="fa-solid fa-trash"></i>
                             </button>
                         </td>
                     </tr>
@@ -59,7 +70,10 @@
                         <td><span class="badge bg-danger">Administrator</span></td>
                         <td><span class="badge bg-success">เปิดใช้งาน</span></td>
                         <td class="text-center">
-                            <button type="button" onclick="openEditModal('1', 'ผู้ดูแลระบบ (Admin)', 'admin@austria.co.th', 'ศูนย์สารสนเทศ ICT', 'Administrator')" class="btn btn-sm btn-outline-info me-1">
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-info me-1"
+                                    data-id="1" data-name="ผู้ดูแลระบบ (Admin)" data-email="admin@austria.co.th" data-dept="ศูนย์สารสนเทศ ICT" data-role="Administrator"
+                                    onclick="handleEditClick(this)">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                         </td>
@@ -71,7 +85,10 @@
                         <td><span class="badge bg-primary">Staff User</span></td>
                         <td><span class="badge bg-success">เปิดใช้งาน</span></td>
                         <td class="text-center">
-                            <button type="button" onclick="openEditModal('2', 'เจ้าหน้าที่ ตรวจสอบ', 'user@austria.co.th', 'พัสดุและครุภัณฑ์', 'Staff User')" class="btn btn-sm btn-outline-info me-1">
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-info me-1"
+                                    data-id="2" data-name="เจ้าหน้าที่ ตรวจสอบ" data-email="user@austria.co.th" data-dept="พัสดุและครุภัณฑ์" data-role="Staff User"
+                                    onclick="handleEditClick(this)">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                         </td>
@@ -83,7 +100,7 @@
 </div>
 
 <!-- ➕ Custom Modal: เพิ่มผู้ใช้งาน -->
-<div id="customAddModal" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 flex-row justify-content-center align-items-center p-3">
+<div id="customAddModal" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 justify-content-center align-items-center p-3">
     <div class="card bg-dark text-white border-secondary shadow-lg w-100" style="max-width: 450px;">
         <div class="card-header border-secondary d-flex justify-content-between align-items-center">
             <h5 class="card-title m-0 font-bold"><i class="fa-solid fa-user-plus text-info me-2"></i>เพิ่มผู้ใช้งานใหม่</h5>
@@ -121,14 +138,14 @@
             </div>
             <div class="card-footer border-secondary text-end">
                 <button type="button" class="btn btn-secondary me-2" onclick="closeAddModal()">ยกเลิก</button>
-                <button type="submit" class="btn btn-info text-white fw-bold">บันทึกข้อมูล</button>
+                <button type="submit" id="btnAddSubmit" class="btn btn-info text-white fw-bold">บันทึกข้อมูล</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- ✏️ Custom Modal: แก้ไขผู้ใช้งาน -->
-<div id="customEditModal" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 flex-row justify-content-center align-items-center p-3">
+<div id="customEditModal" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 justify-content-center align-items-center p-3">
     <div class="card bg-dark text-white border-secondary shadow-lg w-100" style="max-width: 450px;">
         <div class="card-header border-secondary d-flex justify-content-between align-items-center">
             <h5 class="card-title m-0 font-bold"><i class="fa-solid fa-user-pen text-info me-2"></i>แก้ไขข้อมูลผู้ใช้งาน</h5>
@@ -163,7 +180,7 @@
             </div>
             <div class="card-footer border-secondary text-end">
                 <button type="button" class="btn btn-secondary me-2" onclick="closeEditModal()">ยกเลิก</button>
-                <button type="submit" class="btn btn-info text-white fw-bold">บันทึกข้อมูล</button>
+                <button type="submit" id="btnEditSubmit" class="btn btn-info text-white fw-bold">บันทึกข้อมูล</button>
             </div>
         </form>
     </div>
@@ -177,7 +194,14 @@
         ? window.location.origin 
         : 'https://qr-code-project-8nj6.onrender.com';
 
-    // --- ฟังก์ชั่นเพิ่มผู้ใช้งาน ---
+    // SweetAlert Theme Config
+    const swalConfig = {
+        background: '#212529',
+        color: '#fff',
+        confirmButtonColor: '#0dcaf0'
+    };
+
+    // --- Modal Control ---
     function openAddModal() {
         const modal = document.getElementById('customAddModal');
         modal.style.display = 'flex';
@@ -189,8 +213,28 @@
         document.getElementById('addUserForm').reset();
     }
 
+    function handleEditClick(btn) {
+        document.getElementById('editUserId').value = btn.dataset.id;
+        document.getElementById('editFullName').value = btn.dataset.name;
+        document.getElementById('editEmail').value = btn.dataset.email;
+        document.getElementById('editDepartment').value = btn.dataset.dept;
+        document.getElementById('editRole').value = btn.dataset.role;
+
+        const modal = document.getElementById('customEditModal');
+        modal.style.display = 'flex';
+        modal.style.zIndex = '9999';
+    }
+
+    function closeEditModal() {
+        document.getElementById('customEditModal').style.display = 'none';
+    }
+
+    // --- API Calls ---
     async function saveNewUser(e) {
         e.preventDefault();
+        const btnSubmit = document.getElementById('btnAddSubmit');
+        btnSubmit.disabled = true;
+
         const payload = {
             full_name: document.getElementById('addFullName').value,
             email: document.getElementById('addEmail').value,
@@ -210,55 +254,39 @@
 
             if (res.ok) {
                 Swal.fire({
+                    ...swalConfig,
                     title: 'สำเร็จ!',
                     text: 'เพิ่มผู้ใช้งานใหม่เรียบร้อยแล้ว',
-                    icon: 'success',
-                    background: '#212529',
-                    color: '#fff',
-                    confirmButtonColor: '#0dcaf0'
+                    icon: 'success'
                 }).then(() => window.location.reload());
             } else {
+                const errData = await res.json().catch(() => ({}));
                 Swal.fire({
+                    ...swalConfig,
                     title: 'เกิดข้อผิดพลาด!',
-                    text: 'ไม่สามารถเพิ่มผู้ใช้ได้ (กรุณาตรวจสอบว่ามี API POST /api/v1/users/)',
-                    icon: 'error',
-                    background: '#212529',
-                    color: '#fff'
+                    text: errData.detail || 'ไม่สามารถเพิ่มผู้ใช้ได้',
+                    icon: 'error'
                 });
             }
         } catch (err) {
             closeAddModal();
             Swal.fire({
+                ...swalConfig,
                 title: 'เชื่อมต่อล้มเหลว!',
                 text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้',
-                icon: 'error',
-                background: '#212529',
-                color: '#fff'
+                icon: 'error'
             });
+        } finally {
+            btnSubmit.disabled = false;
         }
-    }
-
-    // --- ฟังก์ชั่นแก้ไขผู้ใช้งาน ---
-    function openEditModal(id, name, email, dept, role) {
-        document.getElementById('editUserId').value = id;
-        document.getElementById('editFullName').value = name;
-        document.getElementById('editEmail').value = email;
-        document.getElementById('editDepartment').value = dept;
-        document.getElementById('editRole').value = role;
-        
-        const modal = document.getElementById('customEditModal');
-        modal.style.display = 'flex';
-        modal.style.zIndex = '9999';
-    }
-
-    function closeEditModal() {
-        document.getElementById('customEditModal').style.display = 'none';
     }
 
     async function saveUserEdit(e) {
         e.preventDefault();
+        const btnSubmit = document.getElementById('btnEditSubmit');
+        btnSubmit.disabled = true;
+
         const userId = document.getElementById('editUserId').value;
-        
         const payload = {
             full_name: document.getElementById('editFullName').value,
             email: document.getElementById('editEmail').value,
@@ -277,31 +305,74 @@
 
             if (res.ok) {
                 Swal.fire({
+                    ...swalConfig,
                     title: 'อัปเดตสำเร็จ!',
                     text: 'แก้ไขข้อมูลผู้ใช้งานเรียบร้อยแล้ว',
-                    icon: 'success',
-                    background: '#212529',
-                    color: '#fff',
-                    confirmButtonColor: '#0dcaf0'
+                    icon: 'success'
                 }).then(() => window.location.reload());
             } else {
+                const errData = await res.json().catch(() => ({}));
                 Swal.fire({
+                    ...swalConfig,
                     title: 'ข้อผิดพลาด!',
-                    text: 'ไม่สามารถบันทึกได้',
-                    icon: 'error',
-                    background: '#212529',
-                    color: '#fff'
+                    text: errData.detail || 'ไม่สามารถบันทึกได้',
+                    icon: 'error'
                 });
             }
         } catch (err) {
             closeEditModal();
             Swal.fire({
+                ...swalConfig,
                 title: 'เชื่อมต่อล้มเหลว!',
                 text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้',
-                icon: 'error',
-                background: '#212529',
-                color: '#fff'
+                icon: 'error'
             });
+        } finally {
+            btnSubmit.disabled = false;
+        }
+    }
+
+    async function deleteUser(id, name) {
+        const confirm = await Swal.fire({
+            ...swalConfig,
+            title: 'ยืนยันการลบ?',
+            text: `คุณต้องการลบผู้ใช้งาน "${name}" ใช่หรือไม่?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'ลบข้อมูล',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#dc3545'
+        });
+
+        if (confirm.isConfirmed) {
+            try {
+                const res = await fetch(`${getBaseUrl()}/api/v1/users/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (res.ok) {
+                    Swal.fire({
+                        ...swalConfig,
+                        title: 'ลบสำเร็จ!',
+                        text: 'ลบผู้ใช้งานเรียบร้อยแล้ว',
+                        icon: 'success'
+                    }).then(() => window.location.reload());
+                } else {
+                    Swal.fire({
+                        ...swalConfig,
+                        title: 'เกิดข้อผิดพลาด!',
+                        text: 'ไม่สามารถลบผู้ใช้งานได้',
+                        icon: 'error'
+                    });
+                }
+            } catch (err) {
+                Swal.fire({
+                    ...swalConfig,
+                    title: 'เชื่อมต่อล้มเหลว!',
+                    text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้',
+                    icon: 'error'
+                });
+            }
         }
     }
 </script>
