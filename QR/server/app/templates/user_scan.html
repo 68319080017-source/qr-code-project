@@ -114,8 +114,8 @@
             <p class="text-xs text-slate-400 mb-4">กรุณากรอกข้อมูลการชำรุดเพื่อแจ้งเจ้าหน้าที่</p>
 
             <form id="reportForm" onsubmit="submitReport(event)" class="space-y-4">
-                <input type="hidden" id="assetId" value="{{ asset.id if asset and asset.id else 0 }}">
-                <input type="hidden" id="assetCode" value="{{ asset.asset_code if asset else '' }}">
+                <input type="hidden" id="assetId" value="{{ asset.id if asset and asset.id else '' }}">
+                <input type="hidden" id="assetCode" value="{{ asset.asset_code if asset and asset.asset_code else '' }}">
 
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">ชื่อผู้แจ้งซ่อม / ผู้พบปัญหา</label>
@@ -161,17 +161,22 @@
             e.preventDefault();
 
             const assetIdRaw = document.getElementById('assetId').value;
+            const assetCodeRaw = document.getElementById('assetCode').value;
+
+            // 🟢 ถ้าไม่มี ID ตัวเลข ให้ใช้ asset_code ส่งไปแทน Backend จะได้ค้นเจอ
+            let finalAssetId = assetIdRaw ? parseInt(assetIdRaw, 10) : 0;
+            if (!finalAssetId && assetCodeRaw) {
+                finalAssetId = parseInt(assetCodeRaw, 10);
+            }
             
             const payload = {
-                asset_id: assetIdRaw ? parseInt(assetIdRaw, 10) : 0,
-                asset_code: document.getElementById('assetCode').value,
+                asset_id: finalAssetId,
                 reporter_name: document.getElementById('reporterName').value,
                 urgency: document.getElementById('urgency').value,
                 issue_description: document.getElementById('issueDescription').value,
                 status: 'Pending'
             };
 
-            // 🟢 ใช้ Relative Path เพื่อให้เรียก API บน Domain ปัจจุบันเสมอ
             try {
                 const res = await fetch('/api/v1/maintenance/', {
                     method: 'POST',
@@ -189,8 +194,9 @@
                         background: '#0f172a',
                         color: '#f8fafc',
                         confirmButtonColor: '#10b981'
+                    }).then(() => {
+                        window.location.reload();
                     });
-                    document.getElementById('reportForm').reset();
                 } else {
                     const errRes = await res.json().catch(() => ({}));
                     const detailMsg = typeof errRes.detail === 'string' ? errRes.detail : JSON.stringify(errRes.detail || 'ไม่สามารถส่งข้อมูลได้');
