@@ -169,8 +169,13 @@
                 status: 'Pending'
             };
 
+            // 🌐 ตรวจสอบว่าเปิดจาก Render หรือไม่ ถ้ารันผ่านเว็บอื่นจะสั่งให้ยิงเข้า Render โดยตรง
+            const baseUrl = window.location.origin.includes('onrender.com') 
+                ? window.location.origin 
+                : 'https://qr-code-project-8nj6.onrender.com';
+
             try {
-                const res = await fetch('/api/v1/maintenance/', {
+                const res = await fetch(`${baseUrl}/api/v1/maintenance/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)

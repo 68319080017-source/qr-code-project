@@ -27,28 +27,178 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td class="fw-bold">ผู้ดูแลระบบ (Admin)</td>
-                    <td>admin@austria.co.th</td>
-                    <td>ศูนย์สารสนเทศ ICT</td>
-                    <td><span class="badge bg-danger">Administrator</span></td>
-                    <td><span class="badge bg-success">เปิดใช้งาน</span></td>
-                    <td class="text-center">
-                        <button class="btn btn-sm btn-outline-info me-1"><i class="fa-solid fa-pen"></i></button>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="fw-bold">เจ้าหน้าที่ ตรวจสอบ</td>
-                    <td>user@austria.co.th</td>
-                    <td>พัสดุและครุภัณฑ์</td>
-                    <td><span class="badge bg-primary">Staff User</span></td>
-                    <td><span class="badge bg-success">เปิดใช้งาน</span></td>
-                    <td class="text-center">
-                        <button class="btn btn-sm btn-outline-info me-1"><i class="fa-solid fa-pen"></i></button>
-                    </td>
-                </tr>
+                {% if users %}
+                    {% for u in users %}
+                    <tr>
+                        <td class="fw-bold">{{ u.full_name if u.full_name else (u.name if u.name else 'ผู้ใช้งาน') }}</td>
+                        <td>{{ u.email if u.email else (u.username if u.username else '-') }}</td>
+                        <td>{{ u.department if u.department else '-' }}</td>
+                        <td>
+                            {% if u.role in ['Administrator', 'admin', 'Admin'] %}
+                                <span class="badge bg-danger">Administrator</span>
+                            {% else %}
+                                <span class="badge bg-primary">Staff User</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-success">เปิดใช้งาน</span></td>
+                        <td class="text-center">
+                            <button type="button" 
+                                    onclick="openEditModal('{{ u.id }}', '{{ u.full_name or u.name or '' }}', '{{ u.email or u.username or '' }}', '{{ u.department or '' }}', '{{ u.role or 'Staff User' }}')" 
+                                    class="btn btn-sm btn-outline-info me-1">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <!-- กรณี Mockup Data ให้ทดสอบกดได้ทันที -->
+                    <tr>
+                        <td class="fw-bold">ผู้ดูแลระบบ (Admin)</td>
+                        <td>admin@austria.co.th</td>
+                        <td>ศูนย์สารสนเทศ ICT</td>
+                        <td><span class="badge bg-danger">Administrator</span></td>
+                        <td><span class="badge bg-success">เปิดใช้งาน</span></td>
+                        <td class="text-center">
+                            <button type="button" onclick="openEditModal('1', 'ผู้ดูแลระบบ (Admin)', 'admin@austria.co.th', 'ศูนย์สารสนเทศ ICT', 'Administrator')" class="btn btn-sm btn-outline-info me-1">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">เจ้าหน้าที่ ตรวจสอบ</td>
+                        <td>user@austria.co.th</td>
+                        <td>พัสดุและครุภัณฑ์</td>
+                        <td><span class="badge bg-primary">Staff User</span></td>
+                        <td><span class="badge bg-success">เปิดใช้งาน</span></td>
+                        <td class="text-center">
+                            <button type="button" onclick="openEditModal('2', 'เจ้าหน้าที่ ตรวจสอบ', 'user@austria.co.th', 'พัสดุและครุภัณฑ์', 'Staff User')" class="btn btn-sm btn-outline-info me-1">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        </td>
+                    </tr>
+                {% endif %}
             </tbody>
         </table>
     </div>
 </div>
+
+<!-- 🛠️ Custom Modal (ไม่พึ่งพา JS ของ Bootstrap เด้งได้ 100%) -->
+<div id="customEditModal" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 flex-row justify-content-center align-items-center p-3">
+    <div class="card bg-dark text-white border-secondary shadow-lg w-100" style="max-width: 450px;">
+        <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+            <h5 class="card-title m-0 font-bold"><i class="fa-solid fa-user-pen text-info me-2"></i>แก้ไขข้อมูลผู้ใช้งาน</h5>
+            <button type="button" class="btn-close btn-close-white" onclick="closeEditModal()"></button>
+        </div>
+        <form id="editUserForm" onsubmit="saveUserEdit(event)">
+            <div class="card-body">
+                <input type="hidden" id="editUserId">
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">ชื่อ - นามสกุล</label>
+                    <input type="text" id="editFullName" required class="form-control bg-secondary text-white border-0">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">อีเมล / ชื่อผู้ใช้</label>
+                    <input type="text" id="editEmail" required class="form-control bg-secondary text-white border-0">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">แผนก / หน่วยงาน</label>
+                    <input type="text" id="editDepartment" required class="form-control bg-secondary text-white border-0">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">ระดับสิทธิ์</label>
+                    <select id="editRole" class="form-select bg-secondary text-white border-0">
+                        <option value="Administrator">Administrator</option>
+                        <option value="Staff User">Staff User</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-footer border-secondary text-end">
+                <button type="button" class="btn btn-secondary me-2" onclick="closeEditModal()">ยกเลิก</button>
+                <button type="submit" class="btn btn-info text-white fw-bold">บันทึกข้อมูล</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    function openEditModal(id, name, email, dept, role) {
+        document.getElementById('editUserId').value = id;
+        document.getElementById('editFullName').value = name;
+        document.getElementById('editEmail').value = email;
+        document.getElementById('editDepartment').value = dept;
+        document.getElementById('editRole').value = role;
+        
+        // สั่งแสดง Modal แบบ Flexbox Center
+        const modal = document.getElementById('customEditModal');
+        modal.style.display = 'flex';
+        modal.style.zIndex = '9999';
+    }
+
+    function closeEditModal() {
+        document.getElementById('customEditModal').style.display = 'none';
+    }
+
+    async function saveUserEdit(e) {
+        e.preventDefault();
+        const userId = document.getElementById('editUserId').value;
+        
+        const payload = {
+            full_name: document.getElementById('editFullName').value,
+            email: document.getElementById('editEmail').value,
+            department: document.getElementById('editDepartment').value,
+            role: document.getElementById('editRole').value
+        };
+
+        const baseUrl = window.location.origin.includes('onrender.com') 
+            ? window.location.origin 
+            : 'https://qr-code-project-8nj6.onrender.com';
+
+        try {
+            const res = await fetch(`${baseUrl}/api/v1/users/${userId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            closeEditModal();
+
+            if (res.ok) {
+                Swal.fire({
+                    title: 'อัปเดตสำเร็จ!',
+                    text: 'แก้ไขข้อมูลผู้ใช้งานเรียบร้อยแล้ว',
+                    icon: 'success',
+                    background: '#212529',
+                    color: '#fff',
+                    confirmButtonColor: '#0dcaf0'
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                Swal.fire({
+                    title: 'ข้อผิดพลาด!',
+                    text: 'ไม่สามารถบันทึกได้ (อาจยังไม่มี API route /api/v1/users/{id} ฝั่ง Backend)',
+                    icon: 'error',
+                    background: '#212529',
+                    color: '#fff'
+                });
+            }
+        } catch (err) {
+            closeEditModal();
+            Swal.fire({
+                title: 'เชื่อมต่อล้มเหลว!',
+                text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้',
+                icon: 'error',
+                background: '#212529',
+                color: '#fff'
+            });
+        }
+    }
+</script>
 {% endblock %}
