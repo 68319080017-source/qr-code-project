@@ -8,11 +8,11 @@
         <h4 class="fw-bold mb-1 text-white">
             <i class="fa-solid fa-users-viewfinder me-2 text-info"></i>ประวัติและสถานะผู้เข้าใช้งาน (Active Admin Tracker)
         </h4>
-        <p class="mb-0 text-muted">ดักจับลำดับผู้ดูแลระบบที่กำลังเปิดใช้งานอยู่ในปัจจุบันแบบ Real-time</p>
+        <p class="mb-0 text-muted">ดักจับลำดับผู้ดูแลระบบที่กำลังเปิดใช้งานอยู่ในปัจจุบันแบบ Real-time ข้ามอุปกรณ์</p>
     </div>
     <div class="glass-panel px-3 py-2 rounded-4 border border-secondary border-opacity-25">
         <span class="text-secondary small me-2"><i class="fa-solid fa-circle text-success me-1 fs-6"></i>กำลังออนไลน์ขณะนี้:</span>
-        <span id="activeCountBadge" class="badge bg-success text-white font-monospace fw-bold fs-6">1 คน</span>
+        <span id="activeCountBadge" class="badge bg-success text-white font-monospace fw-bold fs-6">กำลังโหลด...</span>
     </div>
 </div>
 
@@ -24,65 +24,72 @@
                     <th>ลำดับรหัสแอดมิน</th>
                     <th>สถานะการใช้งาน</th>
                     <th>แผนก / หน่วยงาน</th>
-                    <th>เวลาเริ่มเข้าใช้ล่าสุด</th>
+                    <th>เวลาส่งสัญญาณล่าสุด</th>
                     <th>อุปกรณ์ / เบราว์เซอร์</th>
                 </tr>
             </thead>
             <tbody id="adminLogsTable">
-                <!-- ข้อมูลรัน Real-time ตามคนเข้าจริง -->
+                <tr><td colspan="5" class="text-center text-muted">กำลังดึงข้อมูลออนไลน์...</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
 <script>
-    function renderActiveAdminLogs() {
-        // เช็กรหัสแอดมินประจำเซสชันของเครื่องนี้
-        let myAdminId = sessionStorage.getItem('my_admin_assigned_id');
-        
-        if (!myAdminId) {
-            let currentSeq = parseInt(localStorage.getItem('admin_sequence_counter') || '0') + 1;
-            localStorage.setItem('admin_sequence_counter', currentSeq);
-            
-            // Format ลำดับแอดมิน: admin01, admin02, admin03...
-            myAdminId = 'admin' + String(currentSeq).padStart(2, '0');
-            sessionStorage.setItem('my_admin_assigned_id', myAdminId);
-            sessionStorage.setItem('my_login_time', new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    // สุ่ม Device ID เฉพาะสำหรับแต่ละเบราว์เซอร์/เครื่อง
+    function getDeviceId() {
+        let devId = localStorage.getItem('my_unique_device_id');
+        if (!devId) {
+            devId = 'dev_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+            localStorage.setItem('my_unique_device_id', devId);
         }
-
-        const loginTime = sessionStorage.getItem('my_login_time') || 'เมื่อสักครู่';
-        const userAgent = navigator.userAgent.includes('Chrome') ? 'Google Chrome (Desktop)' : 'Web Browser';
-        const totalAdmins = parseInt(localStorage.getItem('admin_sequence_counter') || '1');
-
-        const tbody = document.getElementById('adminLogsTable');
-        const badge = document.getElementById('activeCountBadge');
-        
-        if (badge) badge.innerText = `${totalAdmins} คน`;
-
-        let rowsHTML = '';
-
-        for (let i = 1; i <= totalAdmins; i++) {
-            const adminCode = 'admin' + String(i).padStart(2, '0');
-            const isMe = (adminCode === myAdminId);
-
-            rowsHTML += `
-                <tr>
-                    <td class="fw-bold text-info">
-                        <i class="fa-solid fa-user-gear me-2"></i>${adminCode} ${isMe ? '<span class="badge bg-info text-dark ms-1">คุณ (เครื่องนี้)</span>' : ''}
-                    </td>
-                    <td>
-                        <span class="badge bg-success"><i class="fa-solid fa-circle-dot me-1"></i>ออนไลน์ (Active)</span>
-                    </td>
-                    <td>ศูนย์สารสนเทศ ICT</td>
-                    <td>${isMe ? loginTime : 'วันนี้ (ผ่านการสแกนเข้า)'}</td>
-                    <td class="text-muted small">${userAgent}</td>
-                </tr>
-            `;
-        }
-
-        tbody.innerHTML = rowsHTML;
+        return devId;
     }
 
-    document.addEventListener('DOMContentLoaded', renderActiveAdminLogs);
+    async function syncActiveAdmins() {
+        try {
+            const devId = getDeviceId();
+            const res = await fetch('/api/v1/active-admins', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: devId })
+            });
+
+            if (!res.ok) return;
+
+            const data = await res.json();
+            const tbody = document.getElementById('adminLogsTable');
+            const badge = document.getElementById('activeCountBadge');
+
+            if (badge) badge.innerText = `${data.active_count} คน`;
+
+            let rowsHTML = '';
+            data.admins.forEach(admin => {
+                rowsHTML += `
+                    <tr>
+                        <td class="fw-bold text-info">
+                            <i class="fa-solid fa-user-gear me-2"></i>${admin.code} 
+                            ${admin.is_me ? '<span class="badge bg-info text-dark ms-1">คุณ (เครื่องนี้)</span>' : ''}
+                        </td>
+                        <td>
+                            <span class="badge bg-success"><i class="fa-solid fa-circle-dot me-1"></i>ออนไลน์ (Active)</span>
+                        </td>
+                        <td>ศูนย์สารสนเทศ ICT</td>
+                        <td>${admin.last_seen}</td>
+                        <td class="text-muted small">${admin.device}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = rowsHTML;
+        } catch (err) {
+            console.error('Tracker sync error:', err);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        syncActiveAdmins();
+        setInterval(syncActiveAdmins, 2000); // อัปเดตทุก 2 วินาที
+    });
 </script>
 {% endblock %}
