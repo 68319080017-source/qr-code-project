@@ -3,14 +3,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
 
-# ดึงค่า DATABASE_URL จาก Environment Variable บน Render
+# ดึง DATABASE_URL จาก Environment Variable บน Render
 DATABASE_URL = os.getenv("DATABASE_URL", settings.SQLALCHEMY_DATABASE_URI)
 
-# ปรับ prefix รองรับ SQLAlchemy v2
+# แปลง prefix postgres:// เป็น postgresql:// เพื่อรองรับ SQLAlchemy v2
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# แยกเงื่อนไขระหว่าง SQLite กับ PostgreSQL
+# แยกการตั้งค่า Engine ระหว่าง SQLite ( Local ) และ PostgreSQL ( Cloud )
 if "sqlite" in DATABASE_URL:
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
