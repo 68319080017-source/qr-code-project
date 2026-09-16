@@ -54,17 +54,24 @@
                                     onclick="handleEditClick(this)">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
-                            <!-- ปุ่มลบข้อมูล -->
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-danger"
-                                    onclick="deleteUser('{{ u.id }}', '{{ u.full_name or u.name or '' }}')">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
+                            
+                            <!-- ปุ่มลบข้อมูล (ถ้าเป็น Admin จะกดลบไม่ได้) -->
+                            {% if u.role in ['Administrator', 'admin', 'Admin'] %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="ไม่สามารถลบ Admin หลักได้">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            {% else %}
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-danger"
+                                        onclick="deleteUser('{{ u.id }}', '{{ u.full_name or u.name or '' }}')">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
                 {% else %}
-                    <!-- กรณีไม่มีข้อมูลในฐานข้อมูล แสดงข้อมูลตัวอย่างพร้อมปุ่มจัดการแบบครบถ้วน -->
+                    <!-- กรณีไม่มีข้อมูลในฐานข้อมูล แสดงข้อมูลตัวอย่าง -->
                     <tr>
                         <td class="fw-bold">ผู้ดูแลระบบ (Admin)</td>
                         <td>admin@austria.co.th</td>
@@ -78,9 +85,8 @@
                                     onclick="handleEditClick(this)">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-danger"
-                                    onclick="deleteUser('1', 'ผู้ดูแลระบบ (Admin)')">
+                            <!-- ปุ่มลบของ Admin ล็อกให้กดไม่ได้ -->
+                            <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="ไม่สามารถลบ Admin หลักได้">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </td>
