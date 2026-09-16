@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}สิทธิ์ผู้ใช้งาน - ระบบจัดการครุภัณฑ์{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1 text-white"><i class="fa-solid fa-users-gear me-2 text-info"></i>สิทธิ์ผู้ใช้งานระบบ</h4>
+        <p class="mb-0 text-muted">จัดการบัญชีผู้ใช้งาน และกำหนดสิทธิ์การเข้าถึงข้อมูล</p>
+    </div>
+    <button class="btn btn-info text-white fw-bold px-3">
+        <i class="fa-solid fa-user-plus me-2"></i>เพิ่มผู้ใช้งาน
+    </button>
+</div>
+
+<div class="card p-3 bg-dark border-secondary">
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>ชื่อ - นามสกุล</th>
+                    <th>อีเมล / ชื่อผู้ใช้</th>
+                    <th>แผนก / หน่วยงาน</th>
+                    <th>ระดับสิทธิ์</th>
+                    <th>สถานะ</th>
+                    <th class="text-center">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="fw-bold">ผู้ดูแลระบบ (Admin)</td>
+                    <td>admin@austria.co.th</td>
+                    <td>ศูนย์สารสนเทศ ICT</td>
+                    <td><span class="badge bg-danger">Administrator</span></td>
+                    <td><span class="badge bg-success">เปิดใช้งาน</span></td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-info me-1"><i class="fa-solid fa-pen"></i></button>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">เจ้าหน้าที่ ตรวจสอบ</td>
+                    <td>user@austria.co.th</td>
+                    <td>พัสดุและครุภัณฑ์</td>
+                    <td><span class="badge bg-primary">Staff User</span></td>
+                    <td><span class="badge bg-success">เปิดใช้งาน</span></td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-info me-1"><i class="fa-solid fa-pen"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+
+{% block title %}User Management | QR Asset{% endblock %}
+
+{% block page_title %}จัดการผู้ใช้งาน (User Management){% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- User List Card -->
+    <div class="glass-card p-4 animate-fade-in" style="animation-delay: 0.4s;">
+        <!-- Header Row -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="mb-0 fw-semibold">
+                <i class="fa-solid fa-users me-2 text-primary"></i>ผู้ใช้งานทั้งหมด
+            </h5>
+            <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                <i class="fa-solid fa-user-plus me-2"></i>เพิ่มผู้ใช้ (Add User)
+            </button>
+        </div>
+
+        <!-- Users Table -->
+        <div class="table-responsive">
+            <table class="table table-dark-custom align-middle">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>ชื่อ-นามสกุล</th>
+                        <th>บทบาท (Role)</th>
+                        <th>สถานะ</th>
+                        <th class="text-center">จัดการ (Actions)</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <tr><td colspan="5" class="text-center">Loading users...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-semibold" id="addUserModalLabel">
+                    <i class="fa-solid fa-user-plus me-2 text-primary"></i>เพิ่มผู้ใช้ (Add User)
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <!-- Email -->
+                    <div class="mb-3">
+                        <label for="userEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control form-control-dark" id="userEmail" placeholder="user@example.com" required>
+                    </div>
+                    <!-- Password -->
+                    <div class="mb-3">
+                        <label for="userPassword" class="form-label">Password</label>
+                        <input type="password" class="form-control form-control-dark" id="userPassword" placeholder="••••••••" required>
+                    </div>
+                    <!-- First Name & Last Name -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="userFirstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control form-control-dark" id="userFirstName" placeholder="ชื่อ" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="userLastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control form-control-dark" id="userLastName" placeholder="นามสกุล" required>
+                        </div>
+                    </div>
+                    <!-- Role Dropdown -->
+                    <div class="mb-3">
+                        <label for="userRole" class="form-label">บทบาท (Role)</label>
+                        <select class="form-select form-control-dark" id="userRole" required>
+                            <option value="" disabled selected>-- เลือกบทบาท --</option>
+                            <option value="super_admin">Super Admin</option>
+                            <option value="admin">Admin</option>
+                            <option value="staff">เจ้าหน้าที่พัสดุ</option>
+                            <option value="auditor">เจ้าหน้าที่ตรวจสอบ</option>
+                            <option value="user">ผู้ใช้งานทั่วไป</option>
+                        </select>
+                    </div>
+                    <!-- Active Checkbox -->
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="userActive" checked>
+                        <label class="form-check-label" for="userActive">Active (เปิดใช้งาน)</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fa-solid fa-xmark me-1"></i>Cancel
+                </button>
+                <button type="submit" form="addUserForm" class="btn btn-primary-custom" id="btnSaveUser">
+                    <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function loadUsers() {
+        const tbody = document.getElementById('usersTableBody');
+        try {
+            const data = await apiGet('/users/');
+            if (!data) return;
+            
+            tbody.innerHTML = '';
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray py-4">ไม่มีผู้ใช้งาน</td></tr>';
+                return;
+            }
+            
+            data.forEach(user => {
+                const nameStr = user.first_name + ' ' + user.last_name;
+                const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.first_name)}+${encodeURIComponent(user.last_name)}&background=4F46E5&color=fff`;
+                const roleBadge = user.is_superuser 
+                    ? '<span class="badge bg-primary bg-opacity-25 text-primary border border-primary border-opacity-50 px-3 py-2">Super Admin</span>'
+                    : '<span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-50 px-3 py-2">User</span>';
+                const statusBadge = user.is_active 
+                    ? '<span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-3 py-2"><i class="fa-solid fa-circle me-1" style="font-size: 0.5rem;"></i>Active</span>'
+                    : '<span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary border-opacity-50 px-3 py-2">Inactive</span>';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="${avatar}" alt="User" class="rounded-circle me-2" width="32" height="32">
+                                <span>${user.email}</span>
+                            </div>
+                        </td>
+                        <td>${nameStr}</td>
+                        <td>${roleBadge}</td>
+                        <td>${statusBadge}</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-light" title="แก้ไข (Edit)">
+                                <i class="fa-solid fa-pen-to-square me-1"></i>Edit
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading users</td></tr>';
+        }
+    }
+
+    document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnSaveUser');
+        const origContent = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        
+        const payload = {
+            email: document.getElementById('userEmail').value,
+            password: document.getElementById('userPassword').value,
+            first_name: document.getElementById('userFirstName').value,
+            last_name: document.getElementById('userLastName').value,
+            is_active: document.getElementById('userActive').checked,
+            is_superuser: document.getElementById('userRole').value === 'super_admin'
+        };
+        
+        const resp = await apiPost('/users/', payload);
+        if (resp && resp.ok) {
+            showToast('User created successfully!', 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addUserModal'));
+            modal.hide();
+            document.getElementById('addUserForm').reset();
+            loadUsers();
+        } else {
+            let errorMsg = 'Failed to create user';
+            if (resp) {
+                const data = await resp.json();
+                if (data.detail) errorMsg = data.detail;
+            }
+            showToast(errorMsg, 'error');
+        }
+        
+        btn.disabled = false;
+        btn.innerHTML = origContent;
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(loadUsers, 300);
+    });
+</script>
+{% endblock %}

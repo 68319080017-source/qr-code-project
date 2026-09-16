@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | QR Asset{% endblock %}
+{% block page_title %}Dashboard Overview{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <!-- Total Assets -->
+    <div class="col-md-3">
+        <div class="glass-card p-4 h-100">
+            <div class="stat-icon primary">
+                <i class="fa-solid fa-boxes-stacked"></i>
+            </div>
+            <div class="stat-value">{{ total_assets }}</div>
+            <div class="stat-label">Total Assets</div>
+        </div>
+    </div>
+    
+    <!-- Normal -->
+    <div class="col-md-3">
+        <div class="glass-card p-4 h-100">
+            <div class="stat-icon success">
+                <i class="fa-solid fa-check-circle"></i>
+            </div>
+            <div class="stat-value">{{ normal_assets }}</div>
+            <div class="stat-label">Normal Status</div>
+        </div>
+    </div>
+    
+    <!-- Broken -->
+    <div class="col-md-3">
+        <div class="glass-card p-4 h-100">
+            <div class="stat-icon danger">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="stat-value">{{ broken_assets }}</div>
+            <div class="stat-label">Broken / Damaged</div>
+        </div>
+    </div>
+    
+    <!-- Repairing -->
+    <div class="col-md-3">
+        <div class="glass-card p-4 h-100">
+            <div class="stat-icon warning">
+                <i class="fa-solid fa-screwdriver-wrench"></i>
+            </div>
+            <div class="stat-value">{{ repairing_assets }}</div>
+            <div class="stat-label">Under Maintenance</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Chart: Assets by Category -->
+    <div class="col-md-8">
+        <div class="glass-card p-4 h-100">
+            <h5 class="mb-4">Assets by Category</h5>
+            <canvas id="categoryChart" height="100"></canvas>
+        </div>
+    </div>
+    
+    <!-- Notifications / Alerts -->
+    <div class="col-md-4">
+        <div class="glass-card p-4 h-100">
+            <h5 class="mb-4">Recent Alerts</h5>
+            
+            <div class="d-flex mb-3 pb-3 border-bottom border-secondary" style="border-color: var(--glass-border) !important;">
+                <div class="text-danger me-3"><i class="fa-solid fa-circle-exclamation fs-4"></i></div>
+                <div>
+                    <h6 class="mb-1">Warranty Expiring</h6>
+                    <p class="mb-0 text-gray small">Asset #IT-2023-014 (MacBook Pro) warranty expires in 15 days.</p>
+                </div>
+            </div>
+            
+            <div class="d-flex mb-3 pb-3 border-bottom border-secondary" style="border-color: var(--glass-border) !important;">
+                <div class="text-warning me-3"><i class="fa-solid fa-clock-rotate-left fs-4"></i></div>
+                <div>
+                    <h6 class="mb-1">Pending Inspection</h6>
+                    <p class="mb-0 text-gray small">5 assets in Room 402 are past their inspection date.</p>
+                </div>
+            </div>
+            
+            <button class="btn btn-outline-light w-100 mt-2">View All Alerts</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize Chart.js with Dark Mode Colors
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    
+    const ctx = document.getElementById('categoryChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['IT Equipment', 'Furniture', 'Vehicles', 'Medical', 'Office Supplies'],
+            datasets: [{
+                label: 'Number of Assets',
+                data: [65, 120, 15, 30, 250],
+                backgroundColor: '#4F46E5',
+                borderRadius: 6,
+                barThickness: 30
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    beginAtZero: true
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

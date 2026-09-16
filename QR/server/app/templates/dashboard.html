@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Overview Dashboard - ระบบจัดการครุภัณฑ์{% endblock %}
+
+{% block content %}
+<style>
+    /* Custom Styling match with Glassmorphism Theme */
+    .dashboard-card {
+        background: rgba(28, 37, 65, 0.6) !important;
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 16px;
+        color: #f8fafc;
+        transition: all 0.25s ease-in-out;
+    }
+    
+    .quick-action-btn {
+        background-color: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        color: #cbd5e1;
+        padding: 12px 16px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+    }
+    .quick-action-btn:hover {
+        background-color: rgba(29, 78, 216, 0.2) !important;
+        border-color: rgba(29, 78, 216, 0.5) !important;
+        color: #ffffff !important;
+        transform: translateX(4px);
+    }
+    .quick-action-btn .btn-title {
+        color: #ffffff;
+    }
+
+    /* Icon Box */
+    .icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Overview Dashboard</h4>
+        <p class="mb-0 text-secondary">สรุปภาพรวมระบบและสถานะครุภัณฑ์แบบ Real-time</p>
+    </div>
+    <div>
+        <a href="/assets" class="btn btn-danger px-3 rounded-pill shadow-sm fw-bold" style="background: linear-gradient(135deg, var(--ta-red), var(--ta-blue)); border: none;">
+            <i class="bi bi-plus-lg me-2"></i>เพิ่มครุภัณฑ์ใหม่
+        </a>
+    </div>
+</div>
+
+<!-- Stat Cards 4 ช่อง -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="dashboard-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-medium">ครุภัณฑ์ทั้งหมด</span>
+                    <h2 class="fw-bold text-white mb-0 mt-1" id="statTotal">0</h2>
+                </div>
+                <div class="icon-box bg-primary bg-opacity-25 text-primary border border-primary border-opacity-25">
+                    <i class="bi bi-boxes"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="dashboard-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-medium">พร้อมใช้งานปกติ</span>
+                    <h2 class="fw-bold text-success mb-0 mt-1" id="statNormal">0</h2>
+                </div>
+                <div class="icon-box bg-success bg-opacity-25 text-success border border-success border-opacity-25">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="dashboard-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-medium">กำลังส่งซ่อม</span>
+                    <h2 class="fw-bold text-warning mb-0 mt-1" id="statMaintenance">0</h2>
+                </div>
+                <div class="icon-box bg-warning bg-opacity-25 text-warning border border-warning border-opacity-25">
+                    <i class="bi bi-wrench-adjustable-circle-fill"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="dashboard-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-medium">ชำรุด / จำหน่าย</span>
+                    <h2 class="fw-bold text-danger mb-0 mt-1" id="statRetired">0</h2>
+                </div>
+                <div class="icon-box bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25">
+                    <i class="bi bi-trash3-fill"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- โซน Chart & Quick Actions -->
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="dashboard-card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0 text-white"><i class="bi bi-pie-chart-fill me-2 text-info"></i>สัดส่วนสถานะครุภัณฑ์</h6>
+            </div>
+            <div class="d-flex justify-content-center align-items-center py-2" style="min-height: 250px;">
+                <canvas id="statusChart" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-5">
+        <div class="dashboard-card p-4 h-100">
+            <h6 class="fw-bold mb-3 text-white"><i class="bi bi-lightning-charge-fill me-2 text-warning"></i>เมนูดำเนินการด่วน</h6>
+            <div class="d-grid gap-3">
+                <a href="/assets" class="quick-action-btn">
+                    <div class="icon-box bg-primary bg-opacity-25 text-primary me-3 border border-primary border-opacity-25" style="width:40px; height:40px;">
+                        <i class="bi bi-box-seam fs-6"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold btn-title">จัดการครุภัณฑ์</div>
+                        <div class="small text-secondary">เพิ่ม แก้ไข หรือลบข้อมูลครุภัณฑ์</div>
+                    </div>
+                </a>
+                <a href="/qrcodes" class="quick-action-btn">
+                    <div class="icon-box bg-info bg-opacity-25 text-info me-3 border border-info border-opacity-25" style="width:40px; height:40px;">
+                        <i class="bi bi-qr-code-scan fs-6"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold btn-title">ศูนย์พิมพ์ QR Code</div>
+                        <div class="small text-secondary">เลือกและพิมพ์สติกเกอร์ QR Code</div>
+                    </div>
+                </a>
+                <a href="/maintenance" class="quick-action-btn">
+                    <div class="icon-box bg-warning bg-opacity-25 text-warning me-3 border border-warning border-opacity-25" style="width:40px; height:40px;">
+                        <i class="bi bi-wrench-adjustable fs-6"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold btn-title">ระบบแจ้งซ่อมบำรุง</div>
+                        <div class="small text-secondary">บันทึกประวัติการซ่อมและส่งซ่อม</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    let myChart = null;
+
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+
+    async function loadDashboard() {
+        try {
+            const res = await fetch('/api/v1/assets/summary/stats');
+            const data = await res.json();
+
+            document.getElementById('statTotal').innerText = data.total;
+            document.getElementById('statNormal').innerText = data.normal;
+            document.getElementById('statMaintenance').innerText = data.maintenance;
+            document.getElementById('statRetired').innerText = data.retired;
+
+            renderChart(data);
+        } catch (err) {
+            console.error('Error loading stats:', err);
+        }
+    }
+
+    function renderChart(data) {
+        const ctx = document.getElementById('statusChart').getContext('2d');
+
+        if (myChart) {
+            myChart.destroy();
+        }
+
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['ใช้งานปกติ', 'ส่งซ่อม', 'ชำรุด/จำหน่าย'],
+                datasets: [{
+                    data: [data.normal, data.maintenance, data.retired],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                    borderWidth: 0,
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#cbd5e1',
+                            padding: 16,
+                            font: { family: 'Sarabun', size: 13 }
+                        }
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+    }
+</script>
+{% endblock %}

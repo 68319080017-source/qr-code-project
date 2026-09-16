@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Assets Management | QR Asset{% endblock %}
+{% block page_title %}Assets Management{% endblock %}
+
+{% block content %}
+<div class="glass-card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h5 class="mb-1">All Assets</h5>
+            <p class="text-gray mb-0 small">Manage, track and generate QR codes for your organization's assets.</p>
+        </div>
+        <div>
+            <button class="btn btn-outline-light me-2"><i class="fa-solid fa-file-export me-2"></i>Export Excel</button>
+            <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addAssetModal">
+                <i class="fa-solid fa-plus me-2"></i>Add Asset
+            </button>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <input type="text" class="form-control form-control-dark" placeholder="Search by name, code, or serial number...">
+        </div>
+        <div class="col-md-2">
+            <select class="form-select form-control-dark">
+                <option selected>All Categories</option>
+                <option value="1">IT Equipment</option>
+                <option value="2">Furniture</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select class="form-select form-control-dark">
+                <option selected>All Statuses</option>
+                <option value="normal">Normal</option>
+                <option value="broken">Broken</option>
+            </select>
+        </div>
+        <div class="col-md-4 text-end">
+            <button class="btn btn-outline-secondary text-light"><i class="fa-solid fa-filter"></i> Apply</button>
+        </div>
+    </div>
+    
+    <!-- Table -->
+    <div class="table-responsive">
+        <table class="table table-dark-custom align-middle">
+            <thead>
+                <tr>
+                    <th>Asset Code</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="assetsTableBody">
+                <tr><td colspan="6" class="text-center">Loading assets...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    <nav class="mt-4" aria-label="Page navigation">
+        <ul class="pagination pagination-sm justify-content-end">
+            <li class="page-item disabled"><a class="page-link bg-transparent text-gray border-secondary" href="#">Previous</a></li>
+            <li class="page-item active"><a class="page-link border-primary" style="background-color: var(--primary);" href="#">1</a></li>
+            <li class="page-item"><a class="page-link bg-transparent text-light border-secondary" href="#">2</a></li>
+            <li class="page-item"><a class="page-link bg-transparent text-light border-secondary" href="#">Next</a></li>
+        </ul>
+    </nav>
+</div>
+
+<!-- Add Asset Modal -->
+<div class="modal fade" id="addAssetModal" tabindex="-1" aria-labelledby="addAssetModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" style="background-color: var(--dark); border: 1px solid var(--glass-border);">
+      <div class="modal-header border-bottom-0">
+        <h5 class="modal-title" id="addAssetModalLabel">Add New Asset</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addAssetForm">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label text-gray small">Asset Number (เลขครุภัณฑ์)</label>
+                    <input type="text" class="form-control form-control-dark" id="assetNumber" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-gray small">Asset Name (ชื่อครุภัณฑ์)</label>
+                    <input type="text" class="form-control form-control-dark" id="assetName" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label text-gray small">Description</label>
+                    <textarea class="form-control form-control-dark" id="assetDesc" rows="3"></textarea>
+                </div>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer border-top-0">
+        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" form="addAssetForm" class="btn btn-primary-custom" id="btnSaveAsset">Save Asset & Generate QR</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function loadAssets() {
+        const tbody = document.getElementById('assetsTableBody');
+        try {
+            const data = await apiGet('/assets/?skip=0&limit=100');
+            if (!data) return;
+            
+            tbody.innerHTML = '';
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray py-4">ไม่มีข้อมูลครุภัณฑ์</td></tr>';
+                return;
+            }
+            
+            data.forEach(asset => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><span class="badge bg-secondary">${asset.asset_number}</span></td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="bg-dark rounded p-2 me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fa-solid fa-boxes-stacked text-gray"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 text-light">${asset.name}</h6>
+                                    <small class="text-gray">SN: ${asset.serial_number || '-'}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>${statusBadge(asset.status)}</td>
+                        <td class="text-end">
+                            <a href="/scan/${asset.qr_code_id}" class="btn btn-sm btn-outline-light me-1" title="View QR"><i class="fa-solid fa-qrcode"></i></a>
+                            <button class="btn btn-sm btn-outline-primary me-1" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading assets</td></tr>';
+        }
+    }
+
+    document.getElementById('addAssetForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnSaveAsset');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        
+        const payload = {
+            asset_number: document.getElementById('assetNumber').value,
+            name: document.getElementById('assetName').value,
+            description: document.getElementById('assetDesc').value,
+            status: "ปกติ"
+        };
+        
+        const resp = await apiPost('/assets/', payload);
+        if (resp && resp.ok) {
+            showToast('Asset added successfully!', 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addAssetModal'));
+            modal.hide();
+            document.getElementById('addAssetForm').reset();
+            loadAssets();
+        } else {
+            showToast('Failed to add asset', 'error');
+        }
+        
+        btn.disabled = false;
+        btn.innerHTML = 'Save Asset & Generate QR';
+    });
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', () => {
+        // Wait briefly to ensure app.js is loaded
+        setTimeout(loadAssets, 300);
+    });
+</script>
+{% endblock %}

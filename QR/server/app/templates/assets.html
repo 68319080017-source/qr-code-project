@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}ครุภัณฑ์ทั้งหมด - ระบบจัดการครุภัณฑ์{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1"><i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>รายการครุภัณฑ์ทั้งหมด</h4>
+        <p class="mb-0 text-muted">จัดการข้อมูล เพิ่ม แก้ไข และตรวจสอบสถานะครุภัณฑ์</p>
+    </div>
+    <button class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#assetModal" onclick="resetForm()">
+        <i class="fa-solid fa-plus me-2"></i>เพิ่มครุภัณฑ์
+    </button>
+</div>
+
+<!-- ตารางแสดงรายการครุภัณฑ์ -->
+<div class="card p-3">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>รหัสครุภัณฑ์</th>
+                    <th>ชื่อรายการ</th>
+                    <th>หมวดหมู่</th>
+                    <th>แผนก/หน่วยงาน</th>
+                    <th>สถานะ</th>
+                    <th>ราคา (บาท)</th>
+                    <th>QR Code</th>
+                    <th class="text-center">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody id="assetTableBody">
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">กำลังโหลดข้อมูล...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+<!--  ย้าย Modal มาไว้นอก block content ตรงนี้ เพื่อไม่ให้โดน AOS Container บีบขอบ/จมมืด -->
+{% block extra_js %}
+<div class="modal fade" id="assetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalTitle">เพิ่มครุภัณฑ์ใหม่</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="assetForm">
+                    <input type="hidden" id="assetId">
+                    <div class="mb-3">
+                        <label class="form-label">รหัสครุภัณฑ์</label>
+                        <input type="text" class="form-control" id="assetCode" required placeholder="เช่น AST-67001">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ชื่อครุภัณฑ์</label>
+                        <input type="text" class="form-control" id="assetName" required placeholder="เช่น คอมพิวเตอร์ All-in-One">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">หมวดหมู่</label>
+                            <input type="text" class="form-control" id="assetCategory" placeholder="เช่น ไอที/คอมพิวเตอร์">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">แผนก/หน่วยงาน</label>
+                            <input type="text" class="form-control" id="assetDepartment" placeholder="เช่น ศูนย์สารสนเทศ">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">สถานะ</label>
+                            <select class="form-select" id="assetStatus">
+                                <option value="ใช้งานปกติ">ใช้งานปกติ</option>
+                                <option value="ส่งซ่อม">ส่งซ่อม</option>
+                                <option value="ชำรุด/แทงจำหน่าย">ชำรุด/แทงจำหน่าย</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">ราคา (บาท)</label>
+                            <input type="number" class="form-control" id="assetPrice" value="0">
+                        </div>
+                    </div>
+                    <div class="text-end mt-4">
+                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">ยกเลิก</button>
+                        <button type="submit" class="btn btn-primary">บันทึกข้อมูล</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_URL = '/api/v1/assets';
+
+    // โหลดข้อมูลเมื่อเปิดหน้าเว็บ
+    document.addEventListener('DOMContentLoaded', loadAssets);
+
+    // ดึงข้อมูลจาก API มาแสดงในตาราง
+    async function loadAssets() {
+        try {
+            const res = await fetch(API_URL + '/');
+            const data = await res.json();
+            const tbody = document.getElementById('assetTableBody');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">ยังไม่มีข้อมูลครุภัณฑ์</td></tr>`;
+                return;
+            }
+
+            data.forEach(item => {
+                let badgeClass = 'bg-success';
+                if (item.status === 'ส่งซ่อม') badgeClass = 'bg-warning text-dark';
+                if (item.status === 'ชำรุด/แทงจำหน่าย') badgeClass = 'bg-danger';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-bold">${item.asset_code}</td>
+                        <td>${item.name}</td>
+                        <td>${item.category || '-'}</td>
+                        <td>${item.department || '-'}</td>
+                        <td><span class="badge ${badgeClass}">${item.status}</span></td>
+                        <td>${Number(item.price).toLocaleString()}</td>
+                        <td>
+                            ${item.qr_code_path ? `<img src="${item.qr_code_path}" width="35" height="35" class="rounded border">` : '-'}
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-info me-1" onclick="editAsset(${item.id}, '${item.asset_code}', '${item.name}', '${item.category || ''}', '${item.department || ''}', '${item.status}', ${item.price})">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAsset(${item.id})">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } catch (err) {
+            console.error(err);
+            document.getElementById('assetTableBody').innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
+        }
+    }
+
+    // ล้างฟอร์ม Modal
+    function resetForm() {
+        document.getElementById('assetId').value = '';
+        document.getElementById('assetForm').reset();
+        document.getElementById('modalTitle').innerText = 'เพิ่มครุภัณฑ์ใหม่';
+        document.getElementById('assetCode').disabled = false;
+    }
+
+    // เตรียมฟอร์มสำหรับแก้ไข
+    function editAsset(id, code, name, cat, dept, status, price) {
+        document.getElementById('assetId').value = id;
+        document.getElementById('assetCode').value = code;
+        document.getElementById('assetCode').disabled = true; // ห้ามแก้รหัส
+        document.getElementById('assetName').value = name;
+        document.getElementById('assetCategory').value = cat;
+        document.getElementById('assetDepartment').value = dept;
+        document.getElementById('assetStatus').value = status;
+        document.getElementById('assetPrice').value = price;
+        
+        document.getElementById('modalTitle').innerText = 'แก้ไขข้อมูลครุภัณฑ์';
+        
+        // ป้องกัน Modal ซ้อนทับหรือค้าง
+        const modalEl = document.getElementById('assetModal');
+        let modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (!modalInstance) {
+            modalInstance = new bootstrap.Modal(modalEl);
+        }
+        modalInstance.show();
+    }
+
+    // Submit ฟอร์ม (บันทึก / แก้ไข)
+    document.getElementById('assetForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('assetId').value;
+        const payload = {
+            asset_code: document.getElementById('assetCode').value,
+            name: document.getElementById('assetName').value,
+            category: document.getElementById('assetCategory').value,
+            department: document.getElementById('assetDepartment').value,
+            status: document.getElementById('assetStatus').value,
+            price: parseFloat(document.getElementById('assetPrice').value) || 0
+        };
+
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `${API_URL}/${id}` : `${API_URL}/`;
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const modalEl = document.getElementById('assetModal');
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) modalInstance.hide();
+                loadAssets();
+            } else {
+                const error = await res.json();
+                alert('เกิดข้อผิดพลาด: ' + (error.detail || 'ไม่สามารถบันทึกได้'));
+            }
+        } catch (err) {
+            alert('ไม่สามารถเชื่อมต่อ Server ได้');
+        }
+    });
+
+    // ลบครุภัณฑ์
+    async function deleteAsset(id) {
+        if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?')) return;
+        try {
+            const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            if (res.ok) loadAssets();
+            else alert('ลบข้อมูลไม่สำเร็จ');
+        } catch (err) {
+            alert('เกิดข้อผิดพลาดในการสั่งลบ');
+        }
+    }
+</script>
+{% endblock %}

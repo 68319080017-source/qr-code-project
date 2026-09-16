@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Details | QR Code Scan</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body class="bg-dark text-light p-3 p-md-5">
+
+<div class="container max-width-md mx-auto" style="max-width: 600px;">
+    <!-- Header -->
+    <div class="text-center mb-4">
+        <div class="d-inline-flex align-items-center mb-2">
+            <i class="fa-solid fa-qrcode fs-2 text-primary me-2"></i>
+            <h3 class="mb-0 fw-bold text-gradient">Asset Info</h3>
+        </div>
+        <p class="text-gray small">QR Code Scan Information</p>
+    </div>
+
+    <!-- Asset Card -->
+    <div class="glass-card p-4 mb-4">
+        <div class="text-center mb-4">
+            {% if asset and asset.image_url %}
+                <img src="{{ asset.image_url }}" alt="Asset Image" class="img-fluid rounded-3 mb-3" style="max-height: 200px; object-fit: cover;">
+            {% else %}
+                <div class="bg-secondary bg-opacity-20 rounded-3 p-4 mb-3 d-flex align-items-center justify-content-center mx-auto" style="width: 120px; height: 120px;">
+                    <i class="fa-solid fa-box-open fs-1 text-gray"></i>
+                </div>
+            {% endif %}
+            
+            <h4 class="fw-bold mb-1">{{ asset.name if asset else "MacBook Pro 16-inch M2 Max" }}</h4>
+            <span class="badge bg-primary px-3 py-2 fs-6">Code: {{ asset.asset_number if asset else "IT-2024-00892" }}</span>
+        </div>
+
+        <hr class="border-secondary my-4">
+
+        <div class="row g-3 small">
+            <div class="col-6">
+                <div class="text-gray">สถานะ (Status)</div>
+                <div class="fw-semibold text-success">
+                    <i class="fa-solid fa-circle-check me-1"></i>{{ asset.status if asset else "ปกติ (Normal)" }}
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="text-gray">หมวดหมู่ (Category)</div>
+                <div class="fw-semibold">{{ asset.category.name if asset and asset.category else "อุปกรณ์คอมพิวเตอร์" }}</div>
+            </div>
+            <div class="col-6">
+                <div class="text-gray">สถานที่ติดตั้ง (Location)</div>
+                <div class="fw-semibold">{{ asset.position_details if asset else "อาคารปฏิบัติการ ชั้น 4 ห้อง 402" }}</div>
+            </div>
+            <div class="col-6">
+                <div class="text-gray">ผู้รับผิดชอบ (Responsible)</div>
+                <div class="fw-semibold">{{ asset.department if asset else "สำนักเทคโนโลยีสารสนเทศ" }}</div>
+            </div>
+            <div class="col-6">
+                <div class="text-gray">Serial Number</div>
+                <div class="fw-semibold">{{ asset.serial_number if asset else "C02G8092MD6R" }}</div>
+            </div>
+            <div class="col-6">
+                <div class="text-gray">วันหมดประกัน (Warranty)</div>
+                <div class="fw-semibold text-warning">2027-12-31</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Tabs -->
+    <div class="glass-card p-3 mb-4">
+        <ul class="nav nav-pills nav-justified mb-3" id="pills-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active small py-2" id="pills-repair-tab" data-bs-toggle="pill" data-bs-target="#pills-repair" type="button" role="tab">ประวัติการซ่อม</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link small py-2" id="pills-audit-tab" data-bs-toggle="pill" data-bs-target="#pills-audit" type="button" role="tab">ประวัติการตรวจ</button>
+            </li>
+        </ul>
+        <div class="tab-content text-gray small" id="pills-tabContent">
+            <div class="tab-pane fade show active" id="pills-repair" role="tabpanel">
+                <div class="border-start border-primary ps-3 mb-2">
+                    <div class="text-light fw-medium">เปลี่ยนแบตเตอรี่ใหม่</div>
+                    <div class="text-xs">15 ม.ค. 2026 • ค่าใช้จ่าย 4,500 บาท</div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="pills-audit" role="tabpanel">
+                <div class="border-start border-success ps-3 mb-2">
+                    <div class="text-light fw-medium">ตรวจสอบประจำปี 2026 - ปกติ</div>
+                    <div class="text-xs">10 ม.ค. 2026 • โดย นายสมชาย พัสดุ</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="d-grid gap-2">
+        <button class="btn btn-warning py-3 fw-semibold rounded-3 text-dark" data-bs-toggle="modal" data-bs-target="#reportModal">
+            <i class="fa-solid fa-triangle-exclamation me-2"></i>แจ้งชำรุด / ส่งซ่อม
+        </button>
+        <button class="btn btn-outline-info py-2 fw-semibold rounded-3" data-bs-toggle="modal" data-bs-target="#moveModal">
+            <i class="fa-solid fa-arrows-turn-to-dots me-2"></i>แจ้งย้ายสถานที่
+        </button>
+        <a href="/api/v1/assets/export/pdf" class="btn btn-outline-light py-2 fw-semibold rounded-3">
+            <i class="fa-solid fa-file-pdf me-2"></i>ดาวน์โหลดข้อมูล PDF
+        </a>
+    </div>
+</div>
+
+<!-- Modal แจ้งชำรุด -->
+<div class="modal fade" id="reportModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">แจ้งชำรุด / ส่งซ่อม</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label class="form-label text-gray small">รายละเอียดความเสียหาย</label>
+                        <textarea class="form-control form-control-dark" rows="3" placeholder="ระบุอาการชำรุด..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-gray small">แนบรูปภาพอาการชำรุด</label>
+                        <input type="file" class="form-control form-control-dark">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-warning text-dark">ส่งเรื่องแจ้งชำรุด</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+asyncpg
+psycopg2-binary
+alembic
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+jinja2
+qrcode
+pillow
+reportlab
+openpyxl
+pandas
+pydantic
+pydantic-settings

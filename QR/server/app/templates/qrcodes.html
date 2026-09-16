@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+  /* Layout การ์ดสติกเกอร์ขนาดคงที่ */
+  .sticker-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+    gap: 16px !important;
+    padding: 20px 0 !important;
+  }
+  .sticker-card {
+    background-color: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+  }
+  .qr-box {
+    background-color: #ffffff !important;
+    padding: 8px !important;
+    border-radius: 8px !important;
+    width: 130px !important;
+    height: 130px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-bottom: 12px !important;
+  }
+  .qr-box img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    display: block !important;
+  }
+  .asset-title {
+    color: #ffffff !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    margin: 4px 0 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+  .asset-code-badge {
+    background-color: #0f172a !important;
+    color: #38bdf8 !important;
+    font-family: monospace !important;
+    font-size: 13px !important;
+    font-weight: bold !important;
+    padding: 2px 10px !important;
+    border-radius: 4px !important;
+    border: 1px solid #334155 !important;
+    margin: 4px 0 !important;
+  }
+  .asset-dept {
+    color: #94a3b8 !important;
+    font-size: 12px !important;
+    margin: 0 !important;
+  }
+  .print-btn {
+    background-color: #2563eb !important;
+    color: white !important;
+    padding: 8px 16px !important;
+    border-radius: 6px !important;
+    border: none !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+  }
+  .print-btn:hover {
+    background-color: #1d4ed8 !important;
+  }
+
+  @media print {
+    body * { visibility: hidden; }
+    #printArea, #printArea * { visibility: visible; }
+    #printArea { position: absolute; left: 0; top: 0; width: 100%; }
+    .no-print { display: none !important; }
+    .sticker-card { background: white !important; border: 1px solid #000 !important; }
+    .asset-title, .asset-dept { color: black !important; }
+  }
+</style>
+
+<div style="padding: 24px; max-width: 1200px; margin: 0 auto;">
+    <!-- Head Bar -->
+    <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+            <h2 style="color: white; font-size: 20px; font-weight: bold; margin: 0;">พิมพ์ QR Code ครุภัณฑ์</h2>
+            <p style="color: #94a3b8; font-size: 13px; margin-top: 4px;">เลือกสติกเกอร์ QR Code สำหรับพิมพ์ติดอุปกรณ์</p>
+        </div>
+        <button onclick="window.print()" class="print-btn">🖨️ สั่งพิมพ์สติกเกอร์</button>
+    </div>
+
+    <!-- Grid Container -->
+    <div id="printArea">
+        <div id="qrContainer" class="sticker-grid">
+            <!-- JS Render -->
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_URL = '/api/v1/assets';
+    
+    // 🔴 บังคับใส่ Domain ของ ngrok ไว้ตรงนี้
+    const NGROK_HOST = "https://wimp-democrat-swampland.ngrok-free.dev";
+
+    async function loadQRCodes() {
+        try {
+            const response = await fetch(API_URL);
+            if (!response.ok) throw new Error('API Error');
+            const assets = await response.json();
+            
+            const container = document.getElementById('qrContainer');
+            container.innerHTML = '';
+
+            if (!assets || assets.length === 0) {
+                container.innerHTML = '<div style="color: #94a3b8; grid-column: 1/-1; text-align: center;">ไม่พบข้อมูลครุภัณฑ์</div>';
+                return;
+            }
+
+            assets.forEach(asset => {
+                const code = asset.asset_code || '0000';
+                const name = asset.asset_name || asset.name || 'ไม่ระบุชื่อ';
+                const dept = asset.department || 'ไม่ระบุแผนก';
+
+                // 🟢 สร้างลิงก์สแกนโดยใช้ Domain ngrok
+                const scanTargetUrl = `${NGROK_HOST}/scan/${code}`;
+                
+                // 🟢 สั่งสร้าง QR Code ภาพ
+                const qrImgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(scanTargetUrl)}`;
+
+                const cardHtml = `
+                    <div class="sticker-card">
+                        <input type="checkbox" checked class="no-print" style="position: absolute; top: 10px; left: 10px; cursor: pointer;">
+                        
+                        <div class="qr-box">
+                            <img src="${qrImgSrc}" alt="QR ${code}">
+                        </div>
+
+                        <div class="asset-title" title="${name}">${name}</div>
+                        <div class="asset-code-badge">${code}</div>
+                        <div class="asset-dept">${dept}</div>
+                    </div>
+                `;
+                container.innerHTML += cardHtml;
+            });
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('qrContainer').innerHTML = '<div style="color: #f87171; grid-column: 1/-1; text-align: center;">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadQRCodes);
+</script>
+{% endblock %}
