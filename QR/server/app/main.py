@@ -14,8 +14,8 @@ from app import models
 # สั่งสร้างตารางทั้งหมดใน Neon PostgreSQL อัตโนมัติเมื่อเซิร์ฟเวอร์เริ่มทำงาน
 models.Base.metadata.create_all(bind=engine)
 
-# Import Routers
-from app.routers import assets, maintenance, qrcodes, reports, users
+# Import Routers (🟢 เพิ่ม requisitions)
+from app.routers import assets, maintenance, qrcodes, reports, users, requisitions
 
 app = FastAPI(title="Asset Management System")
 
@@ -159,6 +159,13 @@ def view_maintenance_page(request: Request):
     if redirect: return redirect
     return templates.TemplateResponse(request=request, name="maintenance.html")
 
+# 🟢 เพิ่ม Route หน้าเบิกอุปกรณ์
+@app.get("/requisitions", response_class=HTMLResponse)
+def view_requisitions_page(request: Request):
+    redirect = require_admin(request)
+    if redirect: return redirect
+    return templates.TemplateResponse(request=request, name="requisitions.html")
+
 @app.get("/reports", response_class=HTMLResponse)
 def view_reports_page(request: Request):
     redirect = require_admin(request)
@@ -176,8 +183,13 @@ def view_public_scan(asset_code: str, request: Request, db: Session = Depends(ge
     asset = db.query(models.Asset).filter(models.Asset.asset_code == asset_code).first()
     return templates.TemplateResponse(request=request, name="user_scan.html", context={"asset": asset})
 
+# =========================================================
+# INCLUDE ROUTERS
+# =========================================================
 app.include_router(assets.router, prefix="/api/v1/assets", tags=["Assets API"])
 app.include_router(maintenance.router, prefix="/api/v1/maintenance", tags=["Maintenance API"])
+# 🟢 เพิ่ม API Router ของ Requisitions
+app.include_router(requisitions.router, prefix="/api/v1/requisitions", tags=["Requisitions API"])
 app.include_router(qrcodes.router, prefix="/api/v1/qrcodes", tags=["QR Codes API"])
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports API"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users API"])

@@ -89,13 +89,15 @@ def delete_asset(asset_id: int, db: Session = Depends(get_db)):
     db.commit()
     return None
 
+# 🟢 เพิ่มการดึงค่า status "ถูกเบิกออก" เพื่อส่งไปยัง Dashboard
 @router.get("/summary/stats")
 def get_dashboard_stats(db: Session = Depends(get_db)):
     return {
         "total": db.query(Asset).count(),
         "normal": db.query(Asset).filter(Asset.status == "ใช้งานปกติ").count(),
+        "withdrawn": db.query(Asset).filter(Asset.status == "ถูกเบิกออก").count(),
         "maintenance": db.query(Asset).filter(Asset.status == "ส่งซ่อม").count(),
-        "retired": db.query(Asset).filter(Asset.status == "ชำรุด/แทงจำหน่าย").count()
+        "retired": db.query(Asset).filter((Asset.status == "ชำรุด/จำหน่าย") | (Asset.status == "ชำรุด/แทงจำหน่าย")).count()
     }
 
 @router.post("/maintenance/ticket")

@@ -59,9 +59,9 @@
     </div>
 </div>
 
-<!-- Stat Cards 4 ช่อง -->
+<!-- Stat Cards 5 ช่อง (ปรับ Layout ให้รองรับรายการถูกเบิกออก) -->
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="col-md">
         <div class="dashboard-card p-3">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
@@ -74,7 +74,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md">
         <div class="dashboard-card p-3">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
@@ -87,7 +87,20 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md">
+        <div class="dashboard-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-medium">ถูกเบิกออก</span>
+                    <h2 class="fw-bold text-info mb-0 mt-1" id="statWithdrawn">0</h2>
+                </div>
+                <div class="icon-box bg-info bg-opacity-25 text-info border border-info border-opacity-25">
+                    <i class="bi bi-box-arrow-right"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md">
         <div class="dashboard-card p-3">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
@@ -100,7 +113,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md">
         <div class="dashboard-card p-3">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
@@ -132,6 +145,15 @@
         <div class="dashboard-card p-4 h-100">
             <h6 class="fw-bold mb-3 text-white"><i class="bi bi-lightning-charge-fill me-2 text-warning"></i>เมนูดำเนินการด่วน</h6>
             <div class="d-grid gap-3">
+                <a href="/requisitions" class="quick-action-btn">
+                    <div class="icon-box bg-info bg-opacity-25 text-info me-3 border border-info border-opacity-25" style="width:40px; height:40px;">
+                        <i class="bi bi-box-arrow-right fs-6"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold btn-title">ระบบเบิกอุปกรณ์</div>
+                        <div class="small text-secondary">บันทึกเบิกของใช้ สายน้อย แรม ฯลฯ</div>
+                    </div>
+                </a>
                 <a href="/assets" class="quick-action-btn">
                     <div class="icon-box bg-primary bg-opacity-25 text-primary me-3 border border-primary border-opacity-25" style="width:40px; height:40px;">
                         <i class="bi bi-box-seam fs-6"></i>
@@ -139,15 +161,6 @@
                     <div>
                         <div class="fw-bold btn-title">จัดการครุภัณฑ์</div>
                         <div class="small text-secondary">เพิ่ม แก้ไข หรือลบข้อมูลครุภัณฑ์</div>
-                    </div>
-                </a>
-                <a href="/qrcodes" class="quick-action-btn">
-                    <div class="icon-box bg-info bg-opacity-25 text-info me-3 border border-info border-opacity-25" style="width:40px; height:40px;">
-                        <i class="bi bi-qr-code-scan fs-6"></i>
-                    </div>
-                    <div>
-                        <div class="fw-bold btn-title">ศูนย์พิมพ์ QR Code</div>
-                        <div class="small text-secondary">เลือกและพิมพ์สติกเกอร์ QR Code</div>
                     </div>
                 </a>
                 <a href="/maintenance" class="quick-action-btn">
@@ -176,10 +189,11 @@
             const res = await fetch('/api/v1/assets/summary/stats');
             const data = await res.json();
 
-            document.getElementById('statTotal').innerText = data.total;
-            document.getElementById('statNormal').innerText = data.normal;
-            document.getElementById('statMaintenance').innerText = data.maintenance;
-            document.getElementById('statRetired').innerText = data.retired;
+            document.getElementById('statTotal').innerText = data.total || 0;
+            document.getElementById('statNormal').innerText = data.normal || 0;
+            document.getElementById('statWithdrawn').innerText = data.withdrawn || 0;
+            document.getElementById('statMaintenance').innerText = data.maintenance || 0;
+            document.getElementById('statRetired').innerText = data.retired || 0;
 
             renderChart(data);
         } catch (err) {
@@ -197,10 +211,15 @@
         myChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['ใช้งานปกติ', 'ส่งซ่อม', 'ชำรุด/จำหน่าย'],
+                labels: ['ใช้งานปกติ', 'ถูกเบิกออก', 'ส่งซ่อม', 'ชำรุด/จำหน่าย'],
                 datasets: [{
-                    data: [data.normal, data.maintenance, data.retired],
-                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                    data: [
+                        data.normal || 0, 
+                        data.withdrawn || 0, 
+                        data.maintenance || 0, 
+                        data.retired || 0
+                    ],
+                    backgroundColor: ['#10b981', '#06b6d4', '#f59e0b', '#ef4444'],
                     borderWidth: 0,
                     hoverOffset: 6
                 }]
