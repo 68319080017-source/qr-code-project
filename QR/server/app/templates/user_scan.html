@@ -114,7 +114,7 @@
             <p class="text-xs text-slate-400 mb-4">กรุณากรอกข้อมูลการชำรุดเพื่อแจ้งเจ้าหน้าที่</p>
 
             <form id="reportForm" onsubmit="submitReport(event)" class="space-y-4">
-                <input type="hidden" id="assetId" value="{{ asset.id if asset else '' }}">
+                <input type="hidden" id="assetId" value="{{ asset.id if asset and asset.id else 0 }}">
                 <input type="hidden" id="assetCode" value="{{ asset.asset_code if asset else '' }}">
 
                 <div>
@@ -160,8 +160,10 @@
         async function submitReport(e) {
             e.preventDefault();
 
+            const assetIdRaw = document.getElementById('assetId').value;
+            
             const payload = {
-                asset_id: document.getElementById('assetId').value,
+                asset_id: assetIdRaw ? parseInt(assetIdRaw, 10) : 0,
                 asset_code: document.getElementById('assetCode').value,
                 reporter_name: document.getElementById('reporterName').value,
                 urgency: document.getElementById('urgency').value,
@@ -169,13 +171,9 @@
                 status: 'Pending'
             };
 
-            // 🌐 ตรวจสอบว่าเปิดจาก Render หรือไม่ ถ้ารันผ่านเว็บอื่นจะสั่งให้ยิงเข้า Render โดยตรง
-            const baseUrl = window.location.origin.includes('onrender.com') 
-                ? window.location.origin 
-                : 'https://qr-code-project-8nj6.onrender.com';
-
+            // 🟢 ใช้ Relative Path เพื่อให้เรียก API บน Domain ปัจจุบันเสมอ
             try {
-                const res = await fetch(`${baseUrl}/api/v1/maintenance/`, {
+                const res = await fetch('/api/v1/maintenance/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -194,9 +192,12 @@
                     });
                     document.getElementById('reportForm').reset();
                 } else {
+                    const errRes = await res.json().catch(() => ({}));
+                    const detailMsg = typeof errRes.detail === 'string' ? errRes.detail : JSON.stringify(errRes.detail || 'ไม่สามารถส่งข้อมูลได้');
+
                     Swal.fire({
                         title: 'เกิดข้อผิดพลาด!',
-                        text: 'ไม่สามารถส่งข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
+                        text: detailMsg,
                         icon: 'error',
                         background: '#0f172a',
                         color: '#f8fafc',
@@ -207,7 +208,7 @@
                 closeReportModal();
                 Swal.fire({
                     title: 'เชื่อมต่อล้มเหลว!',
-                    text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้',
+                    text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้: ' + err.message,
                     icon: 'error',
                     background: '#0f172a',
                     color: '#f8fafc',
