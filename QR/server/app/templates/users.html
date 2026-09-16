@@ -43,7 +43,7 @@
                         </td>
                         <td><span class="badge bg-success">เปิดใช้งาน</span></td>
                         <td class="text-center">
-                            <!-- ใช้ Data Attributes เพื่อป้องกันการหลุด Single Quote ใน JS -->
+                            <!-- ปุ่มแก้ไขข้อมูล -->
                             <button type="button" 
                                     class="btn btn-sm btn-outline-info me-1 btn-edit"
                                     data-id="{{ u.id }}"
@@ -54,6 +54,7 @@
                                     onclick="handleEditClick(this)">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
+                            <!-- ปุ่มลบข้อมูล -->
                             <button type="button" 
                                     class="btn btn-sm btn-outline-danger"
                                     onclick="deleteUser('{{ u.id }}', '{{ u.full_name or u.name or '' }}')">
@@ -63,6 +64,7 @@
                     </tr>
                     {% endfor %}
                 {% else %}
+                    <!-- กรณีไม่มีข้อมูลในฐานข้อมูล แสดงข้อมูลตัวอย่างพร้อมปุ่มจัดการแบบครบถ้วน -->
                     <tr>
                         <td class="fw-bold">ผู้ดูแลระบบ (Admin)</td>
                         <td>admin@austria.co.th</td>
@@ -75,6 +77,11 @@
                                     data-id="1" data-name="ผู้ดูแลระบบ (Admin)" data-email="admin@austria.co.th" data-dept="ศูนย์สารสนเทศ ICT" data-role="Administrator"
                                     onclick="handleEditClick(this)">
                                 <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger"
+                                    onclick="deleteUser('1', 'ผู้ดูแลระบบ (Admin)')">
+                                <i class="fa-solid fa-trash"></i>
                             </button>
                         </td>
                     </tr>
@@ -90,6 +97,11 @@
                                     data-id="2" data-name="เจ้าหน้าที่ ตรวจสอบ" data-email="user@austria.co.th" data-dept="พัสดุและครุภัณฑ์" data-role="Staff User"
                                     onclick="handleEditClick(this)">
                                 <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger"
+                                    onclick="deleteUser('2', 'เจ้าหน้าที่ ตรวจสอบ')">
+                                <i class="fa-solid fa-trash"></i>
                             </button>
                         </td>
                     </tr>
