@@ -110,8 +110,8 @@
 <script>
     const API_URL = '/api/v1/assets';
     
-    // 🔴 บังคับใส่ Domain ของ ngrok ไว้ตรงนี้
-    const NGROK_HOST = "https://wimp-democrat-swampland.ngrok-free.dev";
+    // 🟢 ใช้ window.location.origin เพื่อดึง Domain ปัจจุบันอัตโนมัติ (รองรับ Render และ Localhost)
+    const CURRENT_HOST = window.location.origin;
 
     async function loadQRCodes() {
         try {
@@ -132,8 +132,8 @@
                 const name = asset.asset_name || asset.name || 'ไม่ระบุชื่อ';
                 const dept = asset.department || 'ไม่ระบุแผนก';
 
-                // 🟢 สร้างลิงก์สแกนโดยใช้ Domain ngrok
-                const scanTargetUrl = `${NGROK_HOST}/scan/${code}`;
+                // 🟢 สร้างลิงก์สแกนตาม Domain ปัจจุบันของเซิร์ฟเวอร์
+                const scanTargetUrl = `${CURRENT_HOST}/scan/${code}`;
                 
                 // 🟢 สั่งสร้าง QR Code ภาพ
                 const qrImgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(scanTargetUrl)}`;
