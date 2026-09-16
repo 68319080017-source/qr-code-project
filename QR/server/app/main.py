@@ -14,11 +14,15 @@ from app.routers import assets, maintenance, qrcodes, reports, users
 app = FastAPI(title="Asset Management System")
 
 # =========================================================
-# CONFIG & AUTH SETTINGS
+# CONFIG & AUTH SETTINGS (รองรับ 2 บัญชีหลัก)
 # =========================================================
-ADMIN_USER = "admin"
-ADMIN_PASS = "2026"
+USERS_CREDENTIALS = {
+    "king": "9999",   # เจ้าของระบบ (Owner)
+    "admin": "2026"   # ผู้ดูแลระบบ (Administrator)
+}
+
 SESSION_COOKIE_KEY = "admin_session"
+USER_COOKIE_KEY = "logged_user"
 
 # Mount Static & Uploads
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -58,13 +62,23 @@ def login_page(request: Request):
 
 @app.post("/login")
 def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
-    if username == ADMIN_USER and password == ADMIN_PASS:
+    # ตรวจสอบการล็อกอินทั้ง king/9999 และ admin/2026
+    if username in USERS_CREDENTIALS and USERS_CREDENTIALS[username] == password:
         response = RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+        
+        # คุกกี้เซสชันยืนยันการเข้าสู่ระบบ
         response.set_cookie(
             key=SESSION_COOKIE_KEY, 
             value="valid_admin_token_2026", 
             httponly=True, 
-            max_age=86400  # มีอายุใช้งาน 1 วัน
+            max_age=86400  # อายุใช้งาน 1 วัน
+        )
+        # คุกกี้ระบุตัวตนผู้ใช้ (king หรือ admin)
+        response.set_cookie(
+            key=USER_COOKIE_KEY,
+            value=username,
+            httponly=False,  # ให้ JavaScript หน้าบ้านอ่านค่าเพื่อควบคุมสิทธิ์ปุ่มลบได้
+            max_age=86400
         )
         return response
     
@@ -78,6 +92,7 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
 def logout():
     response = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     response.delete_cookie(SESSION_COOKIE_KEY)
+    response.delete_cookie(USER_COOKIE_KEY)
     return response
 
 
