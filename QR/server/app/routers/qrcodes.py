@@ -7,13 +7,11 @@ from app.database import get_db
 
 router = APIRouter()
 
-# 🔴 ลิงก์ ngrok ที่ใช้งานได้ปัจจุบัน
-NGROK_BASE_URL = "https://wimp-democrat-swampland.ngrok-free.dev"
-
 @router.get("/generate/{asset_code}")
 def generate_qr(asset_code: str, request: Request, db: Session = Depends(get_db)):
-    # บังคับใช้ ngrok URL เท่านั้น ห้ามอ้างอิง localhost
-    redirect_url = f"{NGROK_BASE_URL}/scan/{asset_code}"
+    # ดึง URL จาก Render อัตโนมัติ (ไม่ใช้ ngrok แล้ว)
+    base_url = str(request.base_url).rstrip('/')
+    redirect_url = f"{base_url}/scan/{asset_code}"
     
     qr = qrcode.QRCode(
         version=1,
@@ -30,4 +28,8 @@ def generate_qr(asset_code: str, request: Request, db: Session = Depends(get_db)
     img.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
 
-    return StreamingResponse(img_byte_arr, media_type="image/png")
+    return StreamingResponse(
+        img_byte_arr, 
+        media_type="image/png",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+    )
