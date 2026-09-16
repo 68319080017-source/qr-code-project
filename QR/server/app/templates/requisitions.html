@@ -1,193 +1,75 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบเบิกอุปกรณ์ - Asset Management</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body { background-color: #0B0F19; color: #E5E7EB; font-family: 'Kanit', sans-serif; }
-        .glass-card { background: rgba(17, 24, 39, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
-        .sidebar-item-active { background: rgba(239, 68, 68, 0.15); color: #F87171; border-left: 4px solid #EF4444; }
-    </style>
-</head>
-<body class="flex h-screen overflow-hidden">
+<script>
+    const API_URL = '/api/v1';
 
-    <!-- Sidebar -->
-    <aside class="w-64 glass-card flex flex-col justify-between p-4 z-20">
-        <div>
-            <div class="flex items-center gap-3 px-2 py-4 border-b border-gray-800">
-                <div class="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center font-bold text-white">A</div>
-                <span class="font-bold text-lg tracking-wide text-white">ไทย-ออสเตรีย</span>
-            </div>
+    async function loadRequisitions() {
+        try {
+            const res = await fetch(`${API_URL}/requisitions/`);
+            if (!res.ok) throw new Error('Network error');
+            const data = await res.json();
+            const tbody = document.getElementById('requisition-table');
             
-            <nav class="mt-6 space-y-1">
-                <p class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">MAIN MENU</p>
-                <a href="/dashboard" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition">
-                    <i class="fa-solid fa-chart-pie w-5"></i> Overview Dashboard
-                </a>
-                <a href="/assets" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition">
-                    <i class="fa-solid fa-boxes-stacked w-5"></i> ครุภัณฑ์ทั้งหมด
-                </a>
-                <a href="/qrcodes" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition">
-                    <i class="fa-solid fa-qrcode w-5"></i> พิมพ์ QR Code
-                </a>
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500">ยังไม่มีประวัติการเบิกอุปกรณ์</td></tr>`;
+                return;
+            }
 
-                <p class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-2">MANAGEMENT</p>
-                <a href="/requisitions" class="flex items-center gap-3 px-3 py-2.5 rounded-lg sidebar-item-active font-medium transition">
-                    <i class="fa-solid fa-hand-holding-box w-5"></i> เบิกอุปกรณ์ / ของใช้
-                </a>
-                <a href="/maintenance" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition">
-                    <i class="fa-solid fa-wrench w-5"></i> แจ้งซ่อม / บำรุง
-                </a>
-                <a href="/users" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition">
-                    <i class="fa-solid fa-users-config w-5"></i> สิทธิ์ผู้ใช้งาน
-                </a>
-                <a href="/reports" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition">
-                    <i class="fa-solid fa-file-invoice w-5"></i> ออกรายงาน / Report
-                </a>
-                <a href="/logout" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-500/10 transition mt-6">
-                    <i class="fa-solid fa-right-from-bracket w-5"></i> ออกจากระบบ
-                </a>
-            </nav>
-        </div>
-    </aside>
+            tbody.innerHTML = data.map(item => `
+                <tr class="hover:bg-gray-800/40 transition">
+                    <td class="p-4 text-gray-400">${item.created_at ? new Date(item.created_at).toLocaleString('th-TH') : '-'}</td>
+                    <td class="p-4 font-mono font-semibold text-red-400">ID: ${item.asset_id}</td>
+                    <td class="p-4 font-medium text-white">${item.requester_name}</td>
+                    <td class="p-4 text-gray-300">${item.department}</td>
+                    <td class="p-4 text-gray-400">${item.purpose || '-'}</td>
+                    <td class="p-4"><span class="px-2.5 py-1 text-xs rounded-full bg-red-500/10 text-red-400 border border-red-500/20">ถูกเบิกออก</span></td>
+                </tr>
+            `).join('');
+        } catch (err) {
+            console.error(err);
+        }
+    }
 
-    <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto p-8">
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <h1 class="text-2xl font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-boxes-packing text-red-500"></i> ประวัติและทำรายการเบิกอุปกรณ์
-                </h1>
-                <p class="text-gray-400 text-sm">บันทึกการเบิกวัสดุสิ้นเปลือง / ครุภัณฑ์ ออกจากระบบ</p>
-            </div>
-            <button onclick="openModal()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-medium shadow-lg shadow-red-600/30">
-                <i class="fa-solid fa-plus"></i> บันทึกเบิกของ
-            </button>
-        </div>
-
-        <!-- Table -->
-        <div class="glass-card rounded-2xl overflow-hidden">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-900/60 text-gray-400 text-sm border-b border-gray-800">
-                        <th class="p-4">วัน-เวลาเบิก</th>
-                        <th class="p-4">รหัสครุภัณฑ์/อุปกรณ์</th>
-                        <th class="p-4">ผู้เบิก</th>
-                        <th class="p-4">แผนก/สาขาวิชา</th>
-                        <th class="p-4">วัตถุประสงค์</th>
-                        <th class="p-4">สถานะ</th>
-                    </tr>
-                </thead>
-                <tbody id="requisition-table" class="divide-y divide-gray-800 text-sm text-gray-300">
-                    <tr>
-                        <td colspan="6" class="p-6 text-center text-gray-500">กำลังโหลดข้อมูล...</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </main>
-
-    <!-- Modal ฟอร์มเบิกของ -->
-    <div id="req-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center z-50">
-        <div class="glass-card w-full max-w-md p-6 rounded-2xl relative border border-gray-700">
-            <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <i class="fa-solid fa-hand-holding-box text-red-500"></i> ฟอร์มเบิกอุปกรณ์
-            </h3>
+    async function loadAssetsForSelect() {
+        try {
+            const res = await fetch(`${API_URL}/assets/`);
+            const assets = await res.json();
+            const select = document.getElementById('asset_id');
             
-            <form id="req-form" onsubmit="submitRequisition(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1">เลือกอุปกรณ์/ครุภัณฑ์</label>
-                    <select id="asset_id" required class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-red-500">
-                        <option value="">-- กำลังโหลดรายการ --</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1">ชื่อ-นามสกุล ผู้เบิก</label>
-                    <input type="text" id="requester_name" required placeholder="เช่น อ.สมชาย ใจดี" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-red-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1">แผนก / สาขาวิชา</label>
-                    <input type="text" id="department" required placeholder="เช่น ช่างยนต์, เทคโนโลยีสารสนเทศ" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-red-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1">วัตถุประสงค์การเบิก</label>
-                    <textarea id="purpose" rows="2" placeholder="เช่น ใช้ติดตั้งงานสอบปฏิบัติ ห้อง LAB 2" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-red-500"></textarea>
-                </div>
-
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-800">ยกเลิก</button>
-                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition font-medium">ยืนยันเบิกออก</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
-        const API_URL = '/api/v1';
-
-        async function loadRequisitions() {
-            try {
-                const res = await fetch(`${API_URL}/requisitions/`);
-                const data = await res.json();
-                const tbody = document.getElementById('requisition-table');
-                
-                if (data.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500">ยังไม่มีประวัติการเบิกอุปกรณ์</td></tr>`;
-                    return;
-                }
-
-                tbody.innerHTML = data.map(item => `
-                    <tr class="hover:bg-gray-800/40 transition">
-                        <td class="p-4 text-gray-400">${new Date(item.created_at).toLocaleString('th-TH')}</td>
-                        <td class="p-4 font-mono font-semibold text-red-400">ID: ${item.asset_id}</td>
-                        <td class="p-4 font-medium text-white">${item.requester_name}</td>
-                        <td class="p-4 text-gray-300">${item.department}</td>
-                        <td class="p-4 text-gray-400">${item.purpose || '-'}</td>
-                        <td class="p-4"><span class="px-2.5 py-1 text-xs rounded-full bg-red-500/10 text-red-400 border border-red-500/20">ถูกเบิกออก</span></td>
-                    </tr>
-                `).join('');
-            } catch (err) {
-                console.error(err);
-            }
+            const available = assets.filter(a => a.status !== 'ถูกเบิกออก');
+            
+            // แก้ไข: ใช้ a.id หรือถ้าไม่มีให้ใช้ a.asset_code เพื่อป้องกันค่า undefined
+            select.innerHTML = available.map(a => {
+                const itemVal = a.id !== undefined ? a.id : a.asset_code;
+                return `<option value="${itemVal}">[${a.asset_code || a.id}] ${a.name}</option>`;
+            }).join('');
+        } catch (err) {
+            console.error(err);
         }
+    }
 
-        async function loadAssetsForSelect() {
-            try {
-                const res = await fetch(`${API_URL}/assets/`);
-                const assets = await res.json();
-                const select = document.getElementById('asset_id');
-                // กรองเฉพาะครุภัณฑ์ที่สถานะยังใช้งานได้ปกติ
-                const available = assets.filter(a => a.status !== 'ถูกเบิกออก');
-                select.innerHTML = available.map(a => `<option value="${a.id}">[${a.asset_code}] ${a.name}</option>`).join('');
-            } catch (err) {
-                console.error(err);
-            }
-        }
+    function openModal() {
+        loadAssetsForSelect();
+        document.getElementById('req-modal').classList.remove('hidden');
+    }
 
-        function openModal() {
-            loadAssetsForSelect();
-            document.getElementById('req-modal').classList.remove('hidden');
-        }
+    function closeModal() {
+        document.getElementById('req-modal').classList.add('hidden');
+    }
 
-        function closeModal() {
-            document.getElementById('req-modal').classList.add('hidden');
-        }
+    async function submitRequisition(e) {
+        e.preventDefault();
+        
+        const rawAssetId = document.getElementById('asset_id').value;
+        const parsedId = parseInt(rawAssetId, 10);
+        
+        // ตรวจสอบ payload ป้องกัน NaN
+        const payload = {
+            asset_id: isNaN(parsedId) ? rawAssetId : parsedId,
+            requester_name: document.getElementById('requester_name').value,
+            department: document.getElementById('department').value,
+            purpose: document.getElementById('purpose').value
+        };
 
-        async function submitRequisition(e) {
-            e.preventDefault();
-            const payload = {
-                asset_id: parseInt(document.getElementById('asset_id').value),
-                requester_name: document.getElementById('requester_name').value,
-                department: document.getElementById('department').value,
-                purpose: document.getElementById('purpose').value
-            };
-
+        try {
             const res = await fetch(`${API_URL}/requisitions/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -198,12 +80,18 @@
                 closeModal();
                 loadRequisitions();
                 document.getElementById('req-form').reset();
+                alert('บันทึกการเบิกเรียบร้อยแล้ว!');
             } else {
-                alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+                // อ่านรายละเอียดข้อผิดพลาดจาก Backend
+                const errDetail = await res.text();
+                console.error('Server Error:', errDetail);
+                alert(`เกิดข้อผิดพลาด (${res.status}): ตรวจสอบการส่งข้อมูลอีกครั้ง`);
             }
+        } catch (err) {
+            console.error('Fetch Error:', err);
+            alert('ไม่สามารถเชื่อมต่อกับ เซิร์ฟเวอร์ ได้');
         }
+    }
 
-        loadRequisitions();
-    </script>
-</body>
-</html>
+    loadRequisitions();
+</script>
