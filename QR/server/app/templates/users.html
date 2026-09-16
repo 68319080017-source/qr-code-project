@@ -43,7 +43,6 @@
                         </td>
                         <td><span class="badge bg-success">เปิดใช้งาน</span></td>
                         <td class="text-center">
-                            <!-- ปุ่มแก้ไข -->
                             <button type="button" 
                                     class="btn btn-sm btn-outline-info me-1 btn-edit"
                                     data-id="{{ u.id }}"
@@ -54,31 +53,17 @@
                                     onclick="handleEditClick(this)">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
-                            
-                            <!-- ปุ่มลบ: เฉพาะ king เท่านั้นที่ลบได้ และห้ามลบตัวเอง -->
-                            {% if session.get('user') == 'king' or session.get('username') == 'king' %}
-                                {% if u.username == 'king' %}
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="ห้ามลบบัญชีเจ้าของระบบหลัก">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                {% else %}
-                                    <button type="button" 
-                                            class="btn btn-sm btn-outline-danger"
-                                            onclick="deleteUser('{{ u.id }}', '{{ u.full_name or u.name or u.username }}')">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                {% endif %}
-                            {% else %}
-                                <!-- บัญชี admin ลบใครไม่ได้เลย -->
-                                <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="สิทธิ์เฉพาะ king เท่านั้นที่ลบได้">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            {% endif %}
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger btn-delete-action"
+                                    data-username="{{ u.username }}"
+                                    onclick="deleteUser('{{ u.id }}', '{{ u.full_name or u.name or u.username }}')">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
                 {% else %}
-                    <!-- แสดง 2 บัญชีหลักตามเงื่อนไข -->
+                    <!-- แสดง 2 บัญชีหลักตามเงื่อนไข (king และ admin) -->
                     <tr>
                         <td class="fw-bold">เจ้าของระบบ (King)</td>
                         <td>king</td>
@@ -98,11 +83,7 @@
                         <td><span class="badge bg-success">เปิดใช้งาน</span></td>
                         <td class="text-center">
                             <button type="button" class="btn btn-sm btn-outline-info me-1" data-id="1" data-name="ผู้ดูแลระบบ (Admin)" data-email="admin" data-dept="ศูนย์สารสนเทศ ICT" data-role="Administrator" onclick="handleEditClick(this)"><i class="fa-solid fa-pen"></i></button>
-                            {% if session.get('user') == 'king' or session.get('username') == 'king' %}
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteUser('1', 'ผู้ดูแลระบบ (Admin)')"><i class="fa-solid fa-trash"></i></button>
-                            {% else %}
-                                <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="สิทธิ์เฉพาะ king เท่านั้นที่ลบได้"><i class="fa-solid fa-trash"></i></button>
-                            {% endif %}
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-action" data-username="admin" onclick="deleteUser('1', 'ผู้ดูแลระบบ (Admin)')"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
                 {% endif %}
@@ -234,6 +215,20 @@
 
     function closeEditModal() {
         document.getElementById('customEditModal').style.display = 'none';
+    }
+
+    // ตรวจสอบและควบคุมสิทธิ์ปุ่มลบผ่าน JavaScript
+    function checkDeletePermissions() {
+        const currentUser = localStorage.getItem('logged_user') || 'admin';
+        const deleteBtns = document.querySelectorAll('.btn-delete-action');
+
+        deleteBtns.forEach(btn => {
+            if (currentUser !== 'king') {
+                btn.disabled = true;
+                btn.className = 'btn btn-sm btn-outline-secondary';
+                btn.title = 'สิทธิ์เฉพาะ king เท่านั้นที่ลบได้';
+            }
+        });
     }
 
     async function saveNewUser(e) {
@@ -381,5 +376,7 @@
             }
         }
     }
+
+    document.addEventListener('DOMContentLoaded', checkDeletePermissions);
 </script>
 {% endblock %}
