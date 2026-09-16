@@ -8,7 +8,11 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.database.connection import Base, engine  # นำเข้า Base และ engine เพื่อสร้างตาราง
 from app import models
+
+# สั่งสร้างตารางทั้งหมดใน Neon PostgreSQL อัตโนมัติเมื่อเซิร์ฟเวอร์เริ่มทำงาน
+models.Base.metadata.create_all(bind=engine)
 
 # Import Routers
 from app.routers import assets, maintenance, qrcodes, reports, users
