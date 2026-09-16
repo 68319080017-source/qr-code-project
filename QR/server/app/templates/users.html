@@ -31,39 +31,46 @@
                 {% if users %}
                     {% for u in users %}
                     <tr>
-                        <td class="fw-bold">{{ u.full_name or u.name or 'ผู้ใช้งาน' }}</td>
+                        <td class="fw-bold">{{ u.full_name or u.name or u.username }}</td>
                         <td>{{ u.email or u.username or '-' }}</td>
                         <td>{{ u.department or '-' }}</td>
                         <td>
-                            {% if u.role in ['Administrator', 'admin', 'Admin'] %}
-                                <span class="badge bg-danger">Administrator</span>
+                            {% if u.username == 'king' or u.role in ['Owner', 'Super Admin'] %}
+                                <span class="badge bg-warning text-dark"><i class="fa-solid fa-crown me-1"></i>Owner</span>
                             {% else %}
-                                <span class="badge bg-primary">Staff User</span>
+                                <span class="badge bg-danger">Administrator</span>
                             {% endif %}
                         </td>
                         <td><span class="badge bg-success">เปิดใช้งาน</span></td>
                         <td class="text-center">
-                            <!-- ปุ่มแก้ไขข้อมูล -->
+                            <!-- ปุ่มแก้ไข -->
                             <button type="button" 
                                     class="btn btn-sm btn-outline-info me-1 btn-edit"
                                     data-id="{{ u.id }}"
-                                    data-name="{{ u.full_name or u.name or '' }}"
-                                    data-email="{{ u.email or u.username or '' }}"
+                                    data-name="{{ u.full_name or u.name or u.username }}"
+                                    data-email="{{ u.email or u.username }}"
                                     data-dept="{{ u.department or '' }}"
-                                    data-role="{{ u.role or 'Staff User' }}"
+                                    data-role="{{ u.role or 'Administrator' }}"
                                     onclick="handleEditClick(this)">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                             
-                            <!-- ปุ่มลบข้อมูล (ถ้าเป็น Admin จะกดลบไม่ได้) -->
-                            {% if u.role in ['Administrator', 'admin', 'Admin'] %}
-                                <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="ไม่สามารถลบ Admin หลักได้">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
+                            <!-- ปุ่มลบ: เฉพาะ king เท่านั้นที่ลบได้ และห้ามลบตัวเอง -->
+                            {% if session.get('user') == 'king' or session.get('username') == 'king' %}
+                                {% if u.username == 'king' %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="ห้ามลบบัญชีเจ้าของระบบหลัก">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                {% else %}
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger"
+                                            onclick="deleteUser('{{ u.id }}', '{{ u.full_name or u.name or u.username }}')">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                {% endif %}
                             {% else %}
-                                <button type="button" 
-                                        class="btn btn-sm btn-outline-danger"
-                                        onclick="deleteUser('{{ u.id }}', '{{ u.full_name or u.name or '' }}')">
+                                <!-- บัญชี admin ลบใครไม่ได้เลย -->
+                                <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="สิทธิ์เฉพาะ king เท่านั้นที่ลบได้">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             {% endif %}
@@ -71,44 +78,31 @@
                     </tr>
                     {% endfor %}
                 {% else %}
-                    <!-- กรณีไม่มีข้อมูลในฐานข้อมูล แสดงข้อมูลตัวอย่าง -->
+                    <!-- แสดง 2 บัญชีหลักตามเงื่อนไข -->
+                    <tr>
+                        <td class="fw-bold">เจ้าของระบบ (King)</td>
+                        <td>king</td>
+                        <td>ผู้จัดการระบบหลัก</td>
+                        <td><span class="badge bg-warning text-dark"><i class="fa-solid fa-crown me-1"></i>Owner</span></td>
+                        <td><span class="badge bg-success">เปิดใช้งาน</span></td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-info me-1" disabled><i class="fa-solid fa-pen"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="บัญชีหลักลบไม่ได้"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
                     <tr>
                         <td class="fw-bold">ผู้ดูแลระบบ (Admin)</td>
-                        <td>admin@austria.co.th</td>
+                        <td>admin</td>
                         <td>ศูนย์สารสนเทศ ICT</td>
                         <td><span class="badge bg-danger">Administrator</span></td>
                         <td><span class="badge bg-success">เปิดใช้งาน</span></td>
                         <td class="text-center">
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-info me-1"
-                                    data-id="1" data-name="ผู้ดูแลระบบ (Admin)" data-email="admin@austria.co.th" data-dept="ศูนย์สารสนเทศ ICT" data-role="Administrator"
-                                    onclick="handleEditClick(this)">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>
-                            <!-- ปุ่มลบของ Admin ล็อกให้กดไม่ได้ -->
-                            <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="ไม่สามารถลบ Admin หลักได้">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold">เจ้าหน้าที่ ตรวจสอบ</td>
-                        <td>user@austria.co.th</td>
-                        <td>พัสดุและครุภัณฑ์</td>
-                        <td><span class="badge bg-primary">Staff User</span></td>
-                        <td><span class="badge bg-success">เปิดใช้งาน</span></td>
-                        <td class="text-center">
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-info me-1"
-                                    data-id="2" data-name="เจ้าหน้าที่ ตรวจสอบ" data-email="user@austria.co.th" data-dept="พัสดุและครุภัณฑ์" data-role="Staff User"
-                                    onclick="handleEditClick(this)">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-danger"
-                                    onclick="deleteUser('2', 'เจ้าหน้าที่ ตรวจสอบ')">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-info me-1" data-id="1" data-name="ผู้ดูแลระบบ (Admin)" data-email="admin" data-dept="ศูนย์สารสนเทศ ICT" data-role="Administrator" onclick="handleEditClick(this)"><i class="fa-solid fa-pen"></i></button>
+                            {% if session.get('user') == 'king' or session.get('username') == 'king' %}
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteUser('1', 'ผู้ดูแลระบบ (Admin)')"><i class="fa-solid fa-trash"></i></button>
+                            {% else %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="สิทธิ์เฉพาะ king เท่านั้นที่ลบได้"><i class="fa-solid fa-trash"></i></button>
+                            {% endif %}
                         </td>
                     </tr>
                 {% endif %}
@@ -133,7 +127,7 @@
 
                 <div class="mb-3">
                     <label class="form-label text-muted small">อีเมล / ชื่อผู้ใช้</label>
-                    <input type="email" id="addEmail" required class="form-control bg-secondary text-white border-0">
+                    <input type="text" id="addEmail" required class="form-control bg-secondary text-white border-0">
                 </div>
 
                 <div class="mb-3">
@@ -149,7 +143,6 @@
                 <div class="mb-3">
                     <label class="form-label text-muted small">ระดับสิทธิ์</label>
                     <select id="addRole" class="form-select bg-secondary text-white border-0">
-                        <option value="Staff User">Staff User</option>
                         <option value="Administrator">Administrator</option>
                     </select>
                 </div>
@@ -192,7 +185,6 @@
                     <label class="form-label text-muted small">ระดับสิทธิ์</label>
                     <select id="editRole" class="form-select bg-secondary text-white border-0">
                         <option value="Administrator">Administrator</option>
-                        <option value="Staff User">Staff User</option>
                     </select>
                 </div>
             </div>
@@ -204,7 +196,6 @@
     </div>
 </div>
 
-<!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
@@ -212,14 +203,12 @@
         ? window.location.origin 
         : 'https://qr-code-project-8nj6.onrender.com';
 
-    // SweetAlert Theme Config
     const swalConfig = {
         background: '#212529',
         color: '#fff',
         confirmButtonColor: '#0dcaf0'
     };
 
-    // --- Modal Control ---
     function openAddModal() {
         const modal = document.getElementById('customAddModal');
         modal.style.display = 'flex';
@@ -247,7 +236,6 @@
         document.getElementById('customEditModal').style.display = 'none';
     }
 
-    // --- API Calls ---
     async function saveNewUser(e) {
         e.preventDefault();
         const btnSubmit = document.getElementById('btnAddSubmit');
