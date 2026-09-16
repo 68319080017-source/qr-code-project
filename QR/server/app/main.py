@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import zoneinfo
 from fastapi import FastAPI, Request, Form, Response, Depends, status
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,6 +14,9 @@ from app import models
 from app.routers import assets, maintenance, qrcodes, reports, users
 
 app = FastAPI(title="Asset Management System")
+
+# ตั้งค่า Timezone เวลาประเทศไทย (UTC+7)
+THAI_TZ = zoneinfo.ZoneInfo("Asia/Bangkok")
 
 # =========================================================
 # CONFIG & AUTH SETTINGS
@@ -44,7 +48,7 @@ def require_admin(request: Request):
     return None
 
 # =========================================================
-# REAL-TIME ADMIN TRACKER API
+# REAL-TIME ADMIN TRACKER API (จับ IP แท้ + อุปกรณ์ + เวลาไทย)
 # =========================================================
 @app.post("/api/v1/active-admins")
 async def track_active_admin(request: Request):
@@ -53,21 +57,44 @@ async def track_active_admin(request: Request):
     
     if not device_id:
         return JSONResponse({"status": "error"}, status_code=400)
+    
+    # 1. ดักจับ IP แท้จริงผ่าน Header บน Cloud/Render
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+    else:
+        client_ip = request.client.host if request.client else "Unknown IP"
         
     user_agent = request.headers.get("user-agent", "")
-    device_name = "Mobile Browser" if any(m in user_agent for m in ["iPhone", "Android", "Mobile"]) else "Google Chrome (Desktop)"
     
-    # อัปเดตสถานะเครื่องลงแรมเซิร์ฟเวอร์
+    # 2. จำแนกประเภทอุปกรณ์แบบละเอียด
+    if "iPhone" in user_agent or "Android" in user_agent:
+        device_name = "Mobile (โทรศัพท์มือถือ)"
+    elif "iPad" in user_agent or "Tablet" in user_agent:
+        device_name = "Tablet (แท็บเล็ต)"
+    elif "Macintosh" in user_agent or "Mac OS" in user_agent:
+        device_name = "MacBook / Mac"
+    elif "Windows" in user_agent:
+        device_name = "PC / Laptop (Windows)"
+    else:
+        device_name = "Desktop / Web Browser"
+    
+    # 3. เวลาไทยปัจจุบัน
+    now_thai = datetime.now(THAI_TZ).strftime("%H:%M:%S")
+
+    # บันทึกข้อมูลเข้าเซิร์ฟเวอร์
     ACTIVE_ADMIN_SESSIONS[device_id] = {
+        "ip": client_ip,
         "device": device_name,
-        "last_seen": datetime.now().strftime("%H:%M:%S")
+        "last_seen": now_thai
     }
     
-    # แปลงข้อมูลส่งกลับเป็นรายการ admin01, admin02...
+    # แปลงส่งกลับให้หน้าบ้าน
     admin_list = []
     for idx, (d_id, d_info) in enumerate(ACTIVE_ADMIN_SESSIONS.items(), start=1):
         admin_list.append({
             "code": f"admin{idx:02d}",
+            "ip": d_info["ip"],
             "device": d_info["device"],
             "last_seen": d_info["last_seen"],
             "is_me": (d_id == device_id)

@@ -247,13 +247,6 @@
                     <h5 class="mb-0 fw-bold text-light">{% block page_title %}Overview Dashboard{% endblock %}</h5>
                     <div class="d-flex align-items-center gap-3">
                         
-                        <!-- 👁️ Widget ยอดคนใช้เว็บ (ไอคอนรูปตา) -->
-                        <div class="d-flex align-items-center glass-panel px-3 py-1.5 rounded-4 border border-secondary border-opacity-25">
-                            <i class="fa-solid fa-eye text-info me-2 fs-6"></i>
-                            <span class="small text-secondary me-2 d-none d-sm-inline" style="font-size: 0.8rem;">ผู้ใช้ทั้งหมด:</span>
-                            <span id="visitorCount" class="badge bg-info text-dark font-monospace fw-bold rounded-pill px-2">1</span>
-                        </div>
-
                         <!-- Dropdown โปรไฟล์ผู้ใช้ + ปุ่ม ออกจากระบบ -->
                         <div class="dropdown position-relative">
                             <div class="d-flex align-items-center gap-2 glass-panel px-3 py-1.5 rounded-4" data-bs-toggle="dropdown" aria-expanded="false" style="cursor: pointer;">
@@ -366,22 +359,6 @@
             } catch (err) {}
         }
 
-        // ระบบนับยอดผู้เข้าชมสะสม (รูปตา)
-        function trackVisitors() {
-            let totalVisitors = parseInt(localStorage.getItem('site_visitor_counter') || '105');
-            
-            if (!sessionStorage.getItem('counted_this_session')) {
-                totalVisitors += 1;
-                localStorage.setItem('site_visitor_counter', totalVisitors);
-                sessionStorage.setItem('counted_this_session', 'true');
-            }
-            
-            const countElement = document.getElementById('visitorCount');
-            if (countElement) {
-                countElement.innerText = totalVisitors.toLocaleString();
-            }
-        }
-
         // เช็กสิทธิ์แสดงผลชื่อผู้ใช้
         function updateProfileUI() {
             const loggedUser = localStorage.getItem('logged_user') || 'admin';
@@ -400,7 +377,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchNotificationCount();
             setInterval(fetchNotificationCount, 5000);
-            trackVisitors();
             updateProfileUI();
         });
     </script>
