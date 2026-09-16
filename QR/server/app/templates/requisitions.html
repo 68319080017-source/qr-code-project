@@ -1,5 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}เบิกอุปกรณ์ - ระบบจัดการครุภัณฑ์{% endblock %}
+{% block page_title %}ประวัติและทำรายการเบิกอุปกรณ์{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <p class="text-secondary mb-0">บันทึกการเบิกวัสดุสิ้นเปลือง / ครุภัณฑ์ ออกจากระบบ</p>
+    </div>
+    <button onclick="openModal()" class="btn btn-danger px-4 py-2 rounded-3 fw-bold d-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-plus-lg"></i> บันทึกเบิกของ
+    </button>
+</div>
+
+<!-- Table Container -->
+<div class="glass-panel p-3">
+    <div class="table-responsive">
+        <table class="w-100 text-start align-middle">
+            <thead>
+                <tr class="text-secondary border-bottom border-secondary border-opacity-25 small">
+                    <th class="p-3">วัน-เวลาเบิก</th>
+                    <th class="p-3">รหัสครุภัณฑ์/อุปกรณ์</th>
+                    <th class="p-3">ผู้เบิก</th>
+                    <th class="p-3">แผนก/สาขาวิชา</th>
+                    <th class="p-3">วัตถุประสงค์</th>
+                    <th class="p-3">สถานะ</th>
+                </tr>
+            </thead>
+            <tbody id="requisition-table" class="small">
+                <tr>
+                    <td colspan="6" class="p-4 text-center text-secondary">กำลังโหลดข้อมูล...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Custom Modal ฟอร์มเบิกของ -->
+<div class="modal fade" id="req-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-box-arrow-right text-danger"></i> ฟอร์มเบิกอุปกรณ์
+                </h5>
+                <button type="button" class="btn-close btn-close-white" onclick="closeModal()"></button>
+            </div>
+            <div class="modal-body">
+                <form id="req-form" onsubmit="submitRequisition(event)" class="d-flex flex-column gap-3">
+                    <div>
+                        <label class="form-label text-secondary small">เลือกอุปกรณ์/ครุภัณฑ์</label>
+                        <select id="asset_id" required class="form-select">
+                            <option value="">-- กำลังโหลดรายการ --</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label text-secondary small">ชื่อ-นามสกุล ผู้เบิก</label>
+                        <input type="text" id="requester_name" required placeholder="เช่น อ.สมชาย ใจดี" class="form-control">
+                    </div>
+
+                    <div>
+                        <label class="form-label text-secondary small">แผนก / สาขาวิชา</label>
+                        <input type="text" id="department" required placeholder="เช่น ช่างยนต์, เทคโนโลยีสารสนเทศ" class="form-control">
+                    </div>
+
+                    <div>
+                        <label class="form-label text-secondary small">วัตถุประสงค์การเบิก</label>
+                        <textarea id="purpose" rows="2" placeholder="เช่น ใช้ติดตั้งงานสอบปฏิบัติ ห้อง LAB 2" class="form-control"></textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" onclick="closeModal()" class="btn btn-outline-secondary rounded-3 px-4">ยกเลิก</button>
+                        <button type="submit" class="btn btn-danger rounded-3 px-4 fw-semibold">ยืนยันเบิกออก</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
     const API_URL = '/api/v1';
+    let reqModalInstance = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        reqModalInstance = new bootstrap.Modal(document.getElementById('req-modal'));
+        loadRequisitions();
+    });
 
     async function loadRequisitions() {
         try {
@@ -9,18 +99,18 @@
             const tbody = document.getElementById('requisition-table');
             
             if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500">ยังไม่มีประวัติการเบิกอุปกรณ์</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-secondary">ยังไม่มีประวัติการเบิกอุปกรณ์</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = data.map(item => `
-                <tr class="hover:bg-gray-800/40 transition">
-                    <td class="p-4 text-gray-400">${item.created_at ? new Date(item.created_at).toLocaleString('th-TH') : '-'}</td>
-                    <td class="p-4 font-mono font-semibold text-red-400">ID: ${item.asset_id}</td>
-                    <td class="p-4 font-medium text-white">${item.requester_name}</td>
-                    <td class="p-4 text-gray-300">${item.department}</td>
-                    <td class="p-4 text-gray-400">${item.purpose || '-'}</td>
-                    <td class="p-4"><span class="px-2.5 py-1 text-xs rounded-full bg-red-500/10 text-red-400 border border-red-500/20">ถูกเบิกออก</span></td>
+                <tr class="border-bottom border-secondary border-opacity-10">
+                    <td class="p-3 text-secondary">${item.created_at ? new Date(item.created_at).toLocaleString('th-TH') : '-'}</td>
+                    <td class="p-3 font-monospace fw-bold text-danger">ID: ${item.asset_id}</td>
+                    <td class="p-3 fw-semibold text-white">${item.requester_name}</td>
+                    <td class="p-3 text-light">${item.department}</td>
+                    <td class="p-3 text-secondary">${item.purpose || '-'}</td>
+                    <td class="p-3"><span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">ถูกเบิกออก</span></td>
                 </tr>
             `).join('');
         } catch (err) {
@@ -36,7 +126,6 @@
             
             const available = assets.filter(a => a.status !== 'ถูกเบิกออก');
             
-            // แก้ไข: ใช้ a.id หรือถ้าไม่มีให้ใช้ a.asset_code เพื่อป้องกันค่า undefined
             select.innerHTML = available.map(a => {
                 const itemVal = a.id !== undefined ? a.id : a.asset_code;
                 return `<option value="${itemVal}">[${a.asset_code || a.id}] ${a.name}</option>`;
@@ -48,11 +137,11 @@
 
     function openModal() {
         loadAssetsForSelect();
-        document.getElementById('req-modal').classList.remove('hidden');
+        reqModalInstance.show();
     }
 
     function closeModal() {
-        document.getElementById('req-modal').classList.add('hidden');
+        reqModalInstance.hide();
     }
 
     async function submitRequisition(e) {
@@ -61,7 +150,6 @@
         const rawAssetId = document.getElementById('asset_id').value;
         const parsedId = parseInt(rawAssetId, 10);
         
-        // ตรวจสอบ payload ป้องกัน NaN
         const payload = {
             asset_id: isNaN(parsedId) ? rawAssetId : parsedId,
             requester_name: document.getElementById('requester_name').value,
@@ -80,18 +168,15 @@
                 closeModal();
                 loadRequisitions();
                 document.getElementById('req-form').reset();
-                alert('บันทึกการเบิกเรียบร้อยแล้ว!');
             } else {
-                // อ่านรายละเอียดข้อผิดพลาดจาก Backend
                 const errDetail = await res.text();
                 console.error('Server Error:', errDetail);
                 alert(`เกิดข้อผิดพลาด (${res.status}): ตรวจสอบการส่งข้อมูลอีกครั้ง`);
             }
         } catch (err) {
             console.error('Fetch Error:', err);
-            alert('ไม่สามารถเชื่อมต่อกับ เซิร์ฟเวอร์ ได้');
+            alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
         }
     }
-
-    loadRequisitions();
 </script>
+{% endblock %}
