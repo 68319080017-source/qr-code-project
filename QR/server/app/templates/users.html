@@ -8,7 +8,8 @@
         <h4 class="fw-bold mb-1 text-white"><i class="fa-solid fa-users-gear me-2 text-info"></i>สิทธิ์ผู้ใช้งานระบบ</h4>
         <p class="mb-0 text-muted">จัดการบัญชีผู้ใช้งาน และกำหนดสิทธิ์การเข้าถึงข้อมูล</p>
     </div>
-    <button class="btn btn-info text-white fw-bold px-3">
+    <!-- ผูกปุ่มเพิ่มผู้ใช้งาน -->
+    <button type="button" onclick="openAddModal()" class="btn btn-info text-white fw-bold px-3">
         <i class="fa-solid fa-user-plus me-2"></i>เพิ่มผู้ใช้งาน
     </button>
 </div>
@@ -51,7 +52,6 @@
                     </tr>
                     {% endfor %}
                 {% else %}
-                    <!-- กรณี Mockup Data ให้ทดสอบกดได้ทันที -->
                     <tr>
                         <td class="fw-bold">ผู้ดูแลระบบ (Admin)</td>
                         <td>admin@austria.co.th</td>
@@ -82,7 +82,52 @@
     </div>
 </div>
 
-<!-- 🛠️ Custom Modal (ไม่พึ่งพา JS ของ Bootstrap เด้งได้ 100%) -->
+<!-- ➕ Custom Modal: เพิ่มผู้ใช้งาน -->
+<div id="customAddModal" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 flex-row justify-content-center align-items-center p-3">
+    <div class="card bg-dark text-white border-secondary shadow-lg w-100" style="max-width: 450px;">
+        <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+            <h5 class="card-title m-0 font-bold"><i class="fa-solid fa-user-plus text-info me-2"></i>เพิ่มผู้ใช้งานใหม่</h5>
+            <button type="button" class="btn-close btn-close-white" onclick="closeAddModal()"></button>
+        </div>
+        <form id="addUserForm" onsubmit="saveNewUser(event)">
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted small">ชื่อ - นามสกุล</label>
+                    <input type="text" id="addFullName" required class="form-control bg-secondary text-white border-0">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">อีเมล / ชื่อผู้ใช้</label>
+                    <input type="email" id="addEmail" required class="form-control bg-secondary text-white border-0">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">รหัสผ่าน</label>
+                    <input type="password" id="addPassword" required class="form-control bg-secondary text-white border-0">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">แผนก / หน่วยงาน</label>
+                    <input type="text" id="addDepartment" required class="form-control bg-secondary text-white border-0">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">ระดับสิทธิ์</label>
+                    <select id="addRole" class="form-select bg-secondary text-white border-0">
+                        <option value="Staff User">Staff User</option>
+                        <option value="Administrator">Administrator</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-footer border-secondary text-end">
+                <button type="button" class="btn btn-secondary me-2" onclick="closeAddModal()">ยกเลิก</button>
+                <button type="submit" class="btn btn-info text-white fw-bold">บันทึกข้อมูล</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ✏️ Custom Modal: แก้ไขผู้ใช้งาน -->
 <div id="customEditModal" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 flex-row justify-content-center align-items-center p-3">
     <div class="card bg-dark text-white border-secondary shadow-lg w-100" style="max-width: 450px;">
         <div class="card-header border-secondary d-flex justify-content-between align-items-center">
@@ -128,6 +173,72 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+    const getBaseUrl = () => window.location.origin.includes('onrender.com') 
+        ? window.location.origin 
+        : 'https://qr-code-project-8nj6.onrender.com';
+
+    // --- ฟังก์ชั่นเพิ่มผู้ใช้งาน ---
+    function openAddModal() {
+        const modal = document.getElementById('customAddModal');
+        modal.style.display = 'flex';
+        modal.style.zIndex = '9999';
+    }
+
+    function closeAddModal() {
+        document.getElementById('customAddModal').style.display = 'none';
+        document.getElementById('addUserForm').reset();
+    }
+
+    async function saveNewUser(e) {
+        e.preventDefault();
+        const payload = {
+            full_name: document.getElementById('addFullName').value,
+            email: document.getElementById('addEmail').value,
+            password: document.getElementById('addPassword').value,
+            department: document.getElementById('addDepartment').value,
+            role: document.getElementById('addRole').value
+        };
+
+        try {
+            const res = await fetch(`${getBaseUrl()}/api/v1/users/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            closeAddModal();
+
+            if (res.ok) {
+                Swal.fire({
+                    title: 'สำเร็จ!',
+                    text: 'เพิ่มผู้ใช้งานใหม่เรียบร้อยแล้ว',
+                    icon: 'success',
+                    background: '#212529',
+                    color: '#fff',
+                    confirmButtonColor: '#0dcaf0'
+                }).then(() => window.location.reload());
+            } else {
+                Swal.fire({
+                    title: 'เกิดข้อผิดพลาด!',
+                    text: 'ไม่สามารถเพิ่มผู้ใช้ได้ (กรุณาตรวจสอบว่ามี API POST /api/v1/users/)',
+                    icon: 'error',
+                    background: '#212529',
+                    color: '#fff'
+                });
+            }
+        } catch (err) {
+            closeAddModal();
+            Swal.fire({
+                title: 'เชื่อมต่อล้มเหลว!',
+                text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้',
+                icon: 'error',
+                background: '#212529',
+                color: '#fff'
+            });
+        }
+    }
+
+    // --- ฟังก์ชั่นแก้ไขผู้ใช้งาน ---
     function openEditModal(id, name, email, dept, role) {
         document.getElementById('editUserId').value = id;
         document.getElementById('editFullName').value = name;
@@ -135,7 +246,6 @@
         document.getElementById('editDepartment').value = dept;
         document.getElementById('editRole').value = role;
         
-        // สั่งแสดง Modal แบบ Flexbox Center
         const modal = document.getElementById('customEditModal');
         modal.style.display = 'flex';
         modal.style.zIndex = '9999';
@@ -156,12 +266,8 @@
             role: document.getElementById('editRole').value
         };
 
-        const baseUrl = window.location.origin.includes('onrender.com') 
-            ? window.location.origin 
-            : 'https://qr-code-project-8nj6.onrender.com';
-
         try {
-            const res = await fetch(`${baseUrl}/api/v1/users/${userId}`, {
+            const res = await fetch(`${getBaseUrl()}/api/v1/users/${userId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -177,13 +283,11 @@
                     background: '#212529',
                     color: '#fff',
                     confirmButtonColor: '#0dcaf0'
-                }).then(() => {
-                    window.location.reload();
-                });
+                }).then(() => window.location.reload());
             } else {
                 Swal.fire({
                     title: 'ข้อผิดพลาด!',
-                    text: 'ไม่สามารถบันทึกได้ (อาจยังไม่มี API route /api/v1/users/{id} ฝั่ง Backend)',
+                    text: 'ไม่สามารถบันทึกได้',
                     icon: 'error',
                     background: '#212529',
                     color: '#fff'
