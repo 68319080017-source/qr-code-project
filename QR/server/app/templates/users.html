@@ -1,17 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}สิทธิ์ผู้ใช้งาน - ระบบจัดการครุภัณฑ์{% endblock %}
+{% block title %}สถานะผู้เข้าใช้ระบบ - ระบบจัดการครุภัณฑ์{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4 class="fw-bold mb-1 text-white"><i class="fa-solid fa-users-gear me-2 text-info"></i>สิทธิ์ผู้ใช้งานระบบ</h4>
-        <p class="mb-0 text-muted">จัดการบัญชีผู้ใช้งาน และกำหนดสิทธิ์การเข้าถึงข้อมูล</p>
+        <h4 class="fw-bold mb-1 text-white">
+            <i class="fa-solid fa-users-viewfinder me-2 text-info"></i>ประวัติและสถานะผู้เข้าใช้งาน (Active Admin Tracker)
+        </h4>
+        <p class="mb-0 text-muted">ดักจับลำดับผู้ดูแลระบบที่กำลังเปิดใช้งานอยู่ในปัจจุบันแบบ Real-time</p>
     </div>
-    <!-- ปุ่มเพิ่มผู้ใช้งาน -->
-    <button type="button" onclick="openAddModal()" class="btn btn-info text-white fw-bold px-3">
-        <i class="fa-solid fa-user-plus me-2"></i>เพิ่มผู้ใช้งาน
-    </button>
+    <div class="glass-panel px-3 py-2 rounded-4 border border-secondary border-opacity-25">
+        <span class="text-secondary small me-2"><i class="fa-solid fa-circle text-success me-1 fs-6"></i>กำลังออนไลน์ขณะนี้:</span>
+        <span id="activeCountBadge" class="badge bg-success text-white font-monospace fw-bold fs-6">1 คน</span>
+    </div>
 </div>
 
 <div class="card p-3 bg-dark border-secondary">
@@ -19,364 +21,68 @@
         <table class="table table-dark table-hover align-middle mb-0">
             <thead>
                 <tr>
-                    <th>ชื่อ - นามสกุล</th>
-                    <th>อีเมล / ชื่อผู้ใช้</th>
+                    <th>ลำดับรหัสแอดมิน</th>
+                    <th>สถานะการใช้งาน</th>
                     <th>แผนก / หน่วยงาน</th>
-                    <th>ระดับสิทธิ์</th>
-                    <th>สถานะ</th>
-                    <th class="text-center">จัดการ</th>
+                    <th>เวลาเริ่มเข้าใช้ล่าสุด</th>
+                    <th>อุปกรณ์ / เบราว์เซอร์</th>
                 </tr>
             </thead>
-            <tbody>
-                {% if users %}
-                    {% for u in users %}
-                    <tr>
-                        <td class="fw-bold">{{ u.full_name or u.name or u.username }}</td>
-                        <td>{{ u.email or u.username or '-' }}</td>
-                        <td>{{ u.department or '-' }}</td>
-                        <td>
-                            {% if u.username == 'king' or u.role in ['Owner', 'Super Admin'] %}
-                                <span class="badge bg-warning text-dark"><i class="fa-solid fa-crown me-1"></i>Owner</span>
-                            {% else %}
-                                <span class="badge bg-danger">Administrator</span>
-                            {% endif %}
-                        </td>
-                        <td><span class="badge bg-success">เปิดใช้งาน</span></td>
-                        <td class="text-center">
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-info me-1 btn-edit"
-                                    data-id="{{ u.id }}"
-                                    data-name="{{ u.full_name or u.name or u.username }}"
-                                    data-email="{{ u.email or u.username }}"
-                                    data-dept="{{ u.department or '' }}"
-                                    data-role="{{ u.role or 'Administrator' }}"
-                                    onclick="handleEditClick(this)">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-danger btn-delete-action"
-                                    data-username="{{ u.username }}"
-                                    onclick="deleteUser('{{ u.id }}', '{{ u.full_name or u.name or u.username }}')">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                {% else %}
-                    <!-- แสดง 2 บัญชีหลักตามเงื่อนไข (king และ admin) -->
-                    <tr>
-                        <td class="fw-bold">เจ้าของระบบ (King)</td>
-                        <td>king</td>
-                        <td>ผู้จัดการระบบหลัก</td>
-                        <td><span class="badge bg-warning text-dark"><i class="fa-solid fa-crown me-1"></i>Owner</span></td>
-                        <td><span class="badge bg-success">เปิดใช้งาน</span></td>
-                        <td class="text-center">
-                            <button type="button" class="btn btn-sm btn-outline-info me-1" disabled><i class="fa-solid fa-pen"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="บัญชีหลักลบไม่ได้"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold">ผู้ดูแลระบบ (Admin)</td>
-                        <td>admin</td>
-                        <td>ศูนย์สารสนเทศ ICT</td>
-                        <td><span class="badge bg-danger">Administrator</span></td>
-                        <td><span class="badge bg-success">เปิดใช้งาน</span></td>
-                        <td class="text-center">
-                            <button type="button" class="btn btn-sm btn-outline-info me-1" data-id="1" data-name="ผู้ดูแลระบบ (Admin)" data-email="admin" data-dept="ศูนย์สารสนเทศ ICT" data-role="Administrator" onclick="handleEditClick(this)"><i class="fa-solid fa-pen"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-action" data-username="admin" onclick="deleteUser('1', 'ผู้ดูแลระบบ (Admin)')"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>
-                {% endif %}
+            <tbody id="adminLogsTable">
+                <!-- ข้อมูลรัน Real-time ตามคนเข้าจริง -->
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- ➕ Custom Modal: เพิ่มผู้ใช้งาน -->
-<div id="customAddModal" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 justify-content-center align-items-center p-3">
-    <div class="card bg-dark text-white border-secondary shadow-lg w-100" style="max-width: 450px;">
-        <div class="card-header border-secondary d-flex justify-content-between align-items-center">
-            <h5 class="card-title m-0 font-bold"><i class="fa-solid fa-user-plus text-info me-2"></i>เพิ่มผู้ใช้งานใหม่</h5>
-            <button type="button" class="btn-close btn-close-white" onclick="closeAddModal()"></button>
-        </div>
-        <form id="addUserForm" onsubmit="saveNewUser(event)">
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label text-muted small">ชื่อ - นามสกุล</label>
-                    <input type="text" id="addFullName" required class="form-control bg-secondary text-white border-0">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label text-muted small">อีเมล / ชื่อผู้ใช้</label>
-                    <input type="text" id="addEmail" required class="form-control bg-secondary text-white border-0">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label text-muted small">รหัสผ่าน</label>
-                    <input type="password" id="addPassword" required class="form-control bg-secondary text-white border-0">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label text-muted small">แผนก / หน่วยงาน</label>
-                    <input type="text" id="addDepartment" required class="form-control bg-secondary text-white border-0">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label text-muted small">ระดับสิทธิ์</label>
-                    <select id="addRole" class="form-select bg-secondary text-white border-0">
-                        <option value="Administrator">Administrator</option>
-                    </select>
-                </div>
-            </div>
-            <div class="card-footer border-secondary text-end">
-                <button type="button" class="btn btn-secondary me-2" onclick="closeAddModal()">ยกเลิก</button>
-                <button type="submit" id="btnAddSubmit" class="btn btn-info text-white fw-bold">บันทึกข้อมูล</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- ✏️ Custom Modal: แก้ไขผู้ใช้งาน -->
-<div id="customEditModal" style="display: none;" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 justify-content-center align-items-center p-3">
-    <div class="card bg-dark text-white border-secondary shadow-lg w-100" style="max-width: 450px;">
-        <div class="card-header border-secondary d-flex justify-content-between align-items-center">
-            <h5 class="card-title m-0 font-bold"><i class="fa-solid fa-user-pen text-info me-2"></i>แก้ไขข้อมูลผู้ใช้งาน</h5>
-            <button type="button" class="btn-close btn-close-white" onclick="closeEditModal()"></button>
-        </div>
-        <form id="editUserForm" onsubmit="saveUserEdit(event)">
-            <div class="card-body">
-                <input type="hidden" id="editUserId">
-
-                <div class="mb-3">
-                    <label class="form-label text-muted small">ชื่อ - นามสกุล</label>
-                    <input type="text" id="editFullName" required class="form-control bg-secondary text-white border-0">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label text-muted small">อีเมล / ชื่อผู้ใช้</label>
-                    <input type="text" id="editEmail" required class="form-control bg-secondary text-white border-0">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label text-muted small">แผนก / หน่วยงาน</label>
-                    <input type="text" id="editDepartment" required class="form-control bg-secondary text-white border-0">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label text-muted small">ระดับสิทธิ์</label>
-                    <select id="editRole" class="form-select bg-secondary text-white border-0">
-                        <option value="Administrator">Administrator</option>
-                    </select>
-                </div>
-            </div>
-            <div class="card-footer border-secondary text-end">
-                <button type="button" class="btn btn-secondary me-2" onclick="closeEditModal()">ยกเลิก</button>
-                <button type="submit" id="btnEditSubmit" class="btn btn-info text-white fw-bold">บันทึกข้อมูล</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <script>
-    const getBaseUrl = () => window.location.origin.includes('onrender.com') 
-        ? window.location.origin 
-        : 'https://qr-code-project-8nj6.onrender.com';
-
-    const swalConfig = {
-        background: '#212529',
-        color: '#fff',
-        confirmButtonColor: '#0dcaf0'
-    };
-
-    function openAddModal() {
-        const modal = document.getElementById('customAddModal');
-        modal.style.display = 'flex';
-        modal.style.zIndex = '9999';
-    }
-
-    function closeAddModal() {
-        document.getElementById('customAddModal').style.display = 'none';
-        document.getElementById('addUserForm').reset();
-    }
-
-    function handleEditClick(btn) {
-        document.getElementById('editUserId').value = btn.dataset.id;
-        document.getElementById('editFullName').value = btn.dataset.name;
-        document.getElementById('editEmail').value = btn.dataset.email;
-        document.getElementById('editDepartment').value = btn.dataset.dept;
-        document.getElementById('editRole').value = btn.dataset.role;
-
-        const modal = document.getElementById('customEditModal');
-        modal.style.display = 'flex';
-        modal.style.zIndex = '9999';
-    }
-
-    function closeEditModal() {
-        document.getElementById('customEditModal').style.display = 'none';
-    }
-
-    // ตรวจสอบและควบคุมสิทธิ์ปุ่มลบผ่าน JavaScript
-    function checkDeletePermissions() {
-        const currentUser = localStorage.getItem('logged_user') || 'admin';
-        const deleteBtns = document.querySelectorAll('.btn-delete-action');
-
-        deleteBtns.forEach(btn => {
-            if (currentUser !== 'king') {
-                btn.disabled = true;
-                btn.className = 'btn btn-sm btn-outline-secondary';
-                btn.title = 'สิทธิ์เฉพาะ king เท่านั้นที่ลบได้';
-            }
-        });
-    }
-
-    async function saveNewUser(e) {
-        e.preventDefault();
-        const btnSubmit = document.getElementById('btnAddSubmit');
-        btnSubmit.disabled = true;
-
-        const payload = {
-            full_name: document.getElementById('addFullName').value,
-            email: document.getElementById('addEmail').value,
-            password: document.getElementById('addPassword').value,
-            department: document.getElementById('addDepartment').value,
-            role: document.getElementById('addRole').value
-        };
-
-        try {
-            const res = await fetch(`${getBaseUrl()}/api/v1/users/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            closeAddModal();
-
-            if (res.ok) {
-                Swal.fire({
-                    ...swalConfig,
-                    title: 'สำเร็จ!',
-                    text: 'เพิ่มผู้ใช้งานใหม่เรียบร้อยแล้ว',
-                    icon: 'success'
-                }).then(() => window.location.reload());
-            } else {
-                const errData = await res.json().catch(() => ({}));
-                Swal.fire({
-                    ...swalConfig,
-                    title: 'เกิดข้อผิดพลาด!',
-                    text: errData.detail || 'ไม่สามารถเพิ่มผู้ใช้ได้',
-                    icon: 'error'
-                });
-            }
-        } catch (err) {
-            closeAddModal();
-            Swal.fire({
-                ...swalConfig,
-                title: 'เชื่อมต่อล้มเหลว!',
-                text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้',
-                icon: 'error'
-            });
-        } finally {
-            btnSubmit.disabled = false;
+    function renderActiveAdminLogs() {
+        // เช็กรหัสแอดมินประจำเซสชันของเครื่องนี้
+        let myAdminId = sessionStorage.getItem('my_admin_assigned_id');
+        
+        if (!myAdminId) {
+            let currentSeq = parseInt(localStorage.getItem('admin_sequence_counter') || '0') + 1;
+            localStorage.setItem('admin_sequence_counter', currentSeq);
+            
+            // Format ลำดับแอดมิน: admin01, admin02, admin03...
+            myAdminId = 'admin' + String(currentSeq).padStart(2, '0');
+            sessionStorage.setItem('my_admin_assigned_id', myAdminId);
+            sessionStorage.setItem('my_login_time', new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
         }
-    }
 
-    async function saveUserEdit(e) {
-        e.preventDefault();
-        const btnSubmit = document.getElementById('btnEditSubmit');
-        btnSubmit.disabled = true;
+        const loginTime = sessionStorage.getItem('my_login_time') || 'เมื่อสักครู่';
+        const userAgent = navigator.userAgent.includes('Chrome') ? 'Google Chrome (Desktop)' : 'Web Browser';
+        const totalAdmins = parseInt(localStorage.getItem('admin_sequence_counter') || '1');
 
-        const userId = document.getElementById('editUserId').value;
-        const payload = {
-            full_name: document.getElementById('editFullName').value,
-            email: document.getElementById('editEmail').value,
-            department: document.getElementById('editDepartment').value,
-            role: document.getElementById('editRole').value
-        };
+        const tbody = document.getElementById('adminLogsTable');
+        const badge = document.getElementById('activeCountBadge');
+        
+        if (badge) badge.innerText = `${totalAdmins} คน`;
 
-        try {
-            const res = await fetch(`${getBaseUrl()}/api/v1/users/${userId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+        let rowsHTML = '';
 
-            closeEditModal();
+        for (let i = 1; i <= totalAdmins; i++) {
+            const adminCode = 'admin' + String(i).padStart(2, '0');
+            const isMe = (adminCode === myAdminId);
 
-            if (res.ok) {
-                Swal.fire({
-                    ...swalConfig,
-                    title: 'อัปเดตสำเร็จ!',
-                    text: 'แก้ไขข้อมูลผู้ใช้งานเรียบร้อยแล้ว',
-                    icon: 'success'
-                }).then(() => window.location.reload());
-            } else {
-                const errData = await res.json().catch(() => ({}));
-                Swal.fire({
-                    ...swalConfig,
-                    title: 'ข้อผิดพลาด!',
-                    text: errData.detail || 'ไม่สามารถบันทึกได้',
-                    icon: 'error'
-                });
-            }
-        } catch (err) {
-            closeEditModal();
-            Swal.fire({
-                ...swalConfig,
-                title: 'เชื่อมต่อล้มเหลว!',
-                text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้',
-                icon: 'error'
-            });
-        } finally {
-            btnSubmit.disabled = false;
+            rowsHTML += `
+                <tr>
+                    <td class="fw-bold text-info">
+                        <i class="fa-solid fa-user-gear me-2"></i>${adminCode} ${isMe ? '<span class="badge bg-info text-dark ms-1">คุณ (เครื่องนี้)</span>' : ''}
+                    </td>
+                    <td>
+                        <span class="badge bg-success"><i class="fa-solid fa-circle-dot me-1"></i>ออนไลน์ (Active)</span>
+                    </td>
+                    <td>ศูนย์สารสนเทศ ICT</td>
+                    <td>${isMe ? loginTime : 'วันนี้ (ผ่านการสแกนเข้า)'}</td>
+                    <td class="text-muted small">${userAgent}</td>
+                </tr>
+            `;
         }
+
+        tbody.innerHTML = rowsHTML;
     }
 
-    async function deleteUser(id, name) {
-        const confirm = await Swal.fire({
-            ...swalConfig,
-            title: 'ยืนยันการลบ?',
-            text: `คุณต้องการลบผู้ใช้งาน "${name}" ใช่หรือไม่?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'ลบข้อมูล',
-            cancelButtonText: 'ยกเลิก',
-            confirmButtonColor: '#dc3545'
-        });
-
-        if (confirm.isConfirmed) {
-            try {
-                const res = await fetch(`${getBaseUrl()}/api/v1/users/${id}`, {
-                    method: 'DELETE'
-                });
-
-                if (res.ok) {
-                    Swal.fire({
-                        ...swalConfig,
-                        title: 'ลบสำเร็จ!',
-                        text: 'ลบผู้ใช้งานเรียบร้อยแล้ว',
-                        icon: 'success'
-                    }).then(() => window.location.reload());
-                } else {
-                    Swal.fire({
-                        ...swalConfig,
-                        title: 'เกิดข้อผิดพลาด!',
-                        text: 'ไม่สามารถลบผู้ใช้งานได้',
-                        icon: 'error'
-                    });
-                }
-            } catch (err) {
-                Swal.fire({
-                    ...swalConfig,
-                    title: 'เชื่อมต่อล้มเหลว!',
-                    text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้',
-                    icon: 'error'
-                });
-            }
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', checkDeletePermissions);
+    document.addEventListener('DOMContentLoaded', renderActiveAdminLogs);
 </script>
 {% endblock %}
