@@ -15,3 +15,4 @@ openpyxl
 pandas
 pydantic
 pydantic-settings
+email-validator
