@@ -4,10 +4,13 @@ from typing import List, Optional, Any
 from datetime import datetime
 import zoneinfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import select, or_
 from pydantic import BaseModel
+
+import cloudinary
+import cloudinary.uploader
 
 from app.database.connection import get_db
 from app.models.asset import Asset
@@ -17,6 +20,16 @@ from app.models.requisition import Requisition as RequisitionModel
 router = APIRouter()
 
 THAI_TZ = zoneinfo.ZoneInfo("Asia/Bangkok")
+
+# =========================================================
+# CLOUDINARY CONFIG (ดึงค่าจาก Environment Variable บน Render)
+# =========================================================
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True
+)
 
 # =========================================================
 # PYDANTIC SCHEMAS
@@ -29,6 +42,7 @@ class AssetBase(BaseModel):
     location: Optional[str] = None
     status: Optional[str] = "ใช้งานปกติ"
     price: Optional[float] = 0.0
+    image_path: Optional[str] = None
 
 class AssetCreate(AssetBase):
     pass
@@ -92,7 +106,6 @@ def get_all_assets(
             Asset.category.ilike(search_fmt)
         ]
         
-        # เช็กความปลอดภัย ป้องกัน Query พังถ้าคอลัมน์ไม่มีอยู่จริงใน DB Model
         if hasattr(Asset, "building"):
             filter_conditions.append(Asset.building.ilike(search_fmt))
         if hasattr(Asset, "room"):
@@ -107,7 +120,6 @@ def get_all_assets(
 
     assets = query.order_by(Asset.id.desc()).offset(skip).limit(limit).all()
 
-    # เติมค่า location ให้ Pydantic Response หากใน Model DB ใช้ชื่ออื่น
     for asset in assets:
         if not getattr(asset, "location", None):
             setattr(asset, "location", getattr(asset, "building", None) or getattr(asset, "department", None))
@@ -168,7 +180,6 @@ def get_asset_timeline(asset_id: int, db: Session = Depends(get_db)):
 
     timeline_events = []
 
-    # ประวัติการลงทะเบียน
     if hasattr(asset, 'created_at') and asset.created_at:
         timeline_events.append({
             "timestamp": asset.created_at.strftime("%d %b %Y - %H:%M น."),
@@ -178,7 +189,6 @@ def get_asset_timeline(asset_id: int, db: Session = Depends(get_db)):
             "type": "register"
         })
 
-    # ประวัติการแจ้งซ่อม
     try:
         maint_records = db.query(MaintenanceModel).filter(MaintenanceModel.asset_id == asset_id).order_by(MaintenanceModel.id.desc()).all()
         for m in maint_records:
@@ -193,7 +203,6 @@ def get_asset_timeline(asset_id: int, db: Session = Depends(get_db)):
     except Exception:
         pass
 
-    # ประวัติการเบิกจ่าย
     try:
         req_records = db.query(RequisitionModel).filter(RequisitionModel.asset_id == asset_id).order_by(RequisitionModel.id.desc()).all()
         for r in req_records:
@@ -216,7 +225,7 @@ def get_asset_timeline(asset_id: int, db: Session = Depends(get_db)):
     }
 
 
-# 5. เพิ่มครุภัณฑ์ใหม่ (ฉบับแก้ Schema Mismatch ชัวร์ 100%)
+# 5. เพิ่มครุภัณฑ์ใหม่
 @router.post("/", response_model=AssetResponse, status_code=status.HTTP_201_CREATED)
 def create_asset(asset_in: AssetCreate, db: Session = Depends(get_db)):
     existing = db.query(Asset).filter(Asset.asset_code == asset_in.asset_code).first()
@@ -224,34 +233,27 @@ def create_asset(asset_in: AssetCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="รหัสครุภัณฑ์นี้มีในระบบแล้ว")
     
     try:
-        # 1. Gen QR Code
         qr_path = generate_qr_code(asset_in.asset_code)
         
-        # 2. แปลง Pydantic เป็น Dict
         asset_dict = asset_in.model_dump() if hasattr(asset_in, "model_dump") else asset_in.dict()
         asset_dict["qr_code_path"] = qr_path
         
-        # 3. ดึงค่า location ออกมาเตรียมไว้
         raw_location = asset_dict.pop("location", None)
         
-        # 4. คัดกรองเอาเฉพาะ Key ที่มีชื่อตรงกับ คอลัมน์ ใน Table DB จริงเท่านั้น
         valid_columns = {c.name for c in Asset.__table__.columns}
         filtered_data = {k: v for k, v in asset_dict.items() if k in valid_columns}
 
-        # แมปค่า location ไปยัง building หรือ department ถ้าตารางมีคอลัมน์นั้น
         if raw_location:
             if "location" in valid_columns:
                 filtered_data["location"] = raw_location
             elif "building" in valid_columns and not filtered_data.get("building"):
                 filtered_data["building"] = raw_location
 
-        # 5. บันทึกข้อมูลลงฐานข้อมูล
         new_asset = Asset(**filtered_data)
         db.add(new_asset)
         db.commit()
         db.refresh(new_asset)
         
-        # เติมค่า location กลับเข้าไปส่งให้ Response Model
         setattr(new_asset, "location", raw_location or getattr(new_asset, "building", None))
         return new_asset
 
@@ -263,7 +265,41 @@ def create_asset(asset_in: AssetCreate, db: Session = Depends(get_db)):
         )
 
 
-# 6. แก้ไขข้อมูลครุภัณฑ์
+# 6. อัปโหลดรูปภาพครุภัณฑ์ขึ้น Cloudinary ถาวร 24 ชม.
+@router.post("/{asset_id}/upload-image")
+async def upload_asset_image(
+    asset_id: int, 
+    file: UploadFile = File(...), 
+    db: Session = Depends(get_db)
+):
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="ไม่พบรายการครุภัณฑ์")
+
+    try:
+        # ยิงรูปขึ้น Cloudinary ถาวร
+        result = cloudinary.uploader.upload(file.file, folder="asset_photos")
+        image_url = result.get("secure_url")
+
+        # บันทึก URL ลงคอลัมน์รูปใน Database
+        valid_columns = {c.name for c in Asset.__table__.columns}
+        if "image_path" in valid_columns:
+            asset.image_path = image_url
+        elif "image_url" in valid_columns:
+            asset.image_url = image_url
+        elif "image" in valid_columns:
+            asset.image = image_url
+
+        db.commit()
+        db.refresh(asset)
+        return {"message": "อัปโหลดรูปภาพสำเร็จ", "image_url": image_url}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Upload Error: {str(e)}")
+
+
+# 7. แก้ไขข้อมูลครุภัณฑ์
 @router.put("/{asset_id}", response_model=AssetResponse)
 def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get_db)):
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
@@ -291,7 +327,7 @@ def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get
     return asset
 
 
-# 7. ลบข้อมูลครุภัณฑ์
+# 8. ลบข้อมูลครุภัณฑ์
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_asset(asset_id: int, db: Session = Depends(get_db)):
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
@@ -303,7 +339,7 @@ def delete_asset(asset_id: int, db: Session = Depends(get_db)):
     return None
 
 
-# 8. สร้างตั๋วแจ้งซ่อมด่วน (Ticket)
+# 9. สร้างตั๋วแจ้งซ่อมด่วน (Ticket)
 @router.post("/maintenance/ticket")
 def create_maintenance_ticket(item: MaintenanceCreateTicket, db: Session = Depends(get_db)):
     asset = db.query(Asset).filter(Asset.id == item.asset_id).first()
