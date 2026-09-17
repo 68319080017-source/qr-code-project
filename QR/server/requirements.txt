@@ -17,3 +17,4 @@ pydantic
 pydantic-settings
 email-validator
 requests
+cloudinary
