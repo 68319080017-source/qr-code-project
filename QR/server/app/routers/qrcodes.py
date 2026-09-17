@@ -7,12 +7,11 @@ from app.database import get_db
 
 router = APIRouter()
 
-# 🌐 ใส่ URL บน Render ของคุณที่เปิดได้ 24 ชม. ตรงนี้ (เช่น https://xxx-nj6.onrender.com)
-RENDER_URL = "https://your-app-name.onrender.com" 
+# Domain ของ Render สำหรับสร้าง QR Code สแกนได้ 24 ชม.
+RENDER_URL = "https://qr-code-project-8nj6.onrender.com"
 
 @router.get("/generate/{asset_code}")
 def generate_qr(asset_code: str, request: Request, db: Session = Depends(get_db)):
-    # บังคับฝัง URL ของ Render ลงใน QR Code ทุกใบตลอดเวลา
     redirect_url = f"{RENDER_URL.rstrip('/')}/scan/{asset_code}"
     
     qr = qrcode.QRCode(
