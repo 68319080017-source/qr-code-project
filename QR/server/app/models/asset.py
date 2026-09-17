@@ -16,9 +16,10 @@ class Asset(Base):
     purchase_date = Column(Date)
     building = Column(String, index=True)
     room = Column(String, index=True)
+    location = Column(String, index=True)
     department = Column(String)
     responsible_person = Column(String, index=True)
-    status = Column(String, default="Normal") # Normal, Broken, Repairing, Sold
+    status = Column(String, default="Normal")
     notes = Column(Text)
     image_path = Column(String)
     qr_code_path = Column(String)

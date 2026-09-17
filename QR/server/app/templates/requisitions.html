@@ -4,6 +4,31 @@
 {% block page_title %}ประวัติและทำรายการเบิกอุปกรณ์{% endblock %}
 
 {% block content %}
+<!-- CSS ปรับแต่งตำแหน่ง และ Z-Index ของ Modal -->
+<style>
+    .modal-backdrop {
+        z-index: 1050 !important;
+    }
+    #req-modal {
+        z-index: 1065 !important;
+    }
+    #req-modal .modal-content {
+        background-color: #111827 !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        color: #ffffff !important;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    #req-modal .form-control, #req-modal .form-select {
+        background-color: #1f2937 !important;
+        border-color: #374151 !important;
+        color: #ffffff !important;
+    }
+    #req-modal .form-control:focus, #req-modal .form-select:focus {
+        border-color: #ef4444 !important;
+        box-shadow: 0 0 0 0.25rem rgba(239, 68, 68, 0.25) !important;
+    }
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <p class="text-secondary mb-0">บันทึกการเบิกวัสดุสิ้นเปลือง / ครุภัณฑ์ ออกจากระบบ</p>
@@ -37,16 +62,16 @@
 </div>
 
 <!-- Custom Modal ฟอร์มเบิกของ -->
-<div class="modal fade" id="req-modal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="req-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
+            <div class="modal-header border-bottom border-secondary border-opacity-25 pb-3">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
                     <i class="bi bi-box-arrow-right text-danger"></i> ฟอร์มเบิกอุปกรณ์
                 </h5>
                 <button type="button" class="btn-close btn-close-white" onclick="closeModal()"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body pt-3">
                 <form id="req-form" onsubmit="submitRequisition(event)" class="d-flex flex-column gap-3">
                     <div>
                         <label class="form-label text-secondary small">เลือกอุปกรณ์/ครุภัณฑ์</label>
@@ -87,7 +112,10 @@
     let reqModalInstance = null;
 
     document.addEventListener('DOMContentLoaded', () => {
-        reqModalInstance = new bootstrap.Modal(document.getElementById('req-modal'));
+        const modalEl = document.getElementById('req-modal');
+        // ย้าย Modal ไปไว้ใต้อยู่ระดับ <body> เพื่อไม่ให้โดน parent container บีบ z-index
+        document.body.appendChild(modalEl);
+        reqModalInstance = new bootstrap.Modal(modalEl);
         loadRequisitions();
     });
 
@@ -114,7 +142,7 @@
                 </tr>
             `).join('');
         } catch (err) {
-            console.error(err);
+            console.error('Load Requisitions Error:', err);
         }
     }
 
@@ -126,12 +154,10 @@
             
             const available = assets.filter(a => a.status !== 'ถูกเบิกออก');
             
-            select.innerHTML = available.map(a => {
-                const itemVal = a.id !== undefined ? a.id : a.asset_code;
-                return `<option value="${itemVal}">[${a.asset_code || a.id}] ${a.name}</option>`;
-            }).join('');
+            select.innerHTML = '<option value="">-- เลือกอุปกรณ์ --</option>' + 
+                available.map(a => `<option value="${a.id}">[${a.asset_code || a.id}] ${a.name}</option>`).join('');
         } catch (err) {
-            console.error(err);
+            console.error('Load Assets Error:', err);
         }
     }
 
@@ -147,14 +173,17 @@
     async function submitRequisition(e) {
         e.preventDefault();
         
-        const rawAssetId = document.getElementById('asset_id').value;
-        const parsedId = parseInt(rawAssetId, 10);
-        
+        const assetIdInput = document.getElementById('asset_id').value;
+        if (!assetIdInput) {
+            alert('กรุณาเลือกอุปกรณ์ก่อนทำรายการ');
+            return;
+        }
+
         const payload = {
-            asset_id: isNaN(parsedId) ? rawAssetId : parsedId,
-            requester_name: document.getElementById('requester_name').value,
-            department: document.getElementById('department').value,
-            purpose: document.getElementById('purpose').value
+            asset_id: parseInt(assetIdInput, 10),
+            requester_name: document.getElementById('requester_name').value.trim(),
+            department: document.getElementById('department').value.trim(),
+            purpose: document.getElementById('purpose').value.trim()
         };
 
         try {
@@ -165,13 +194,23 @@
             });
 
             if (res.ok) {
+                alert('บันทึกการเบิกเรียบร้อยแล้ว');
                 closeModal();
                 loadRequisitions();
                 document.getElementById('req-form').reset();
             } else {
-                const errDetail = await res.text();
-                console.error('Server Error:', errDetail);
-                alert(`เกิดข้อผิดพลาด (${res.status}): ตรวจสอบการส่งข้อมูลอีกครั้ง`);
+                // พยายามอ่านรายละเอียดข้อผิดพลาดจาก Backend JSON
+                const errData = await res.json().catch(() => ({ detail: 'ไม่สามารถอ่านข้อความตอบกลับได้' }));
+                console.error('Server Error:', errData);
+                
+                let errorMsg = 'เกิดข้อผิดพลาดในการทำรายการ';
+                if (typeof errData.detail === 'string') {
+                    errorMsg = errData.detail;
+                } else if (typeof errData.detail === 'object') {
+                    errorMsg = JSON.stringify(errData.detail);
+                }
+
+                alert(`เกิดข้อผิดพลาด (${res.status}): ${errorMsg}`);
             }
         } catch (err) {
             console.error('Fetch Error:', err);

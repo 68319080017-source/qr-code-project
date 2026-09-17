@@ -39,7 +39,6 @@
 </div>
 {% endblock %}
 
-<!--  ย้าย Modal มาไว้นอก block content ตรงนี้ เพื่อไม่ให้โดน AOS Container บีบขอบ/จมมืด -->
 {% block extra_js %}
 <div class="modal fade" id="assetModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -74,18 +73,19 @@
                             <label class="form-label">สถานะ</label>
                             <select class="form-select" id="assetStatus">
                                 <option value="ใช้งานปกติ">ใช้งานปกติ</option>
+                                <option value="ถูกเบิกออก">ถูกเบิกออก</option>
                                 <option value="ส่งซ่อม">ส่งซ่อม</option>
                                 <option value="ชำรุด/แทงจำหน่าย">ชำรุด/แทงจำหน่าย</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">ราคา (บาท)</label>
-                            <input type="number" class="form-control" id="assetPrice" value="0">
+                            <input type="number" class="form-control" id="assetPrice" value="0" step="any">
                         </div>
                     </div>
                     <div class="text-end mt-4">
                         <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">ยกเลิก</button>
-                        <button type="submit" class="btn btn-primary">บันทึกข้อมูล</button>
+                        <button type="submit" class="btn btn-primary" id="btnSaveAsset">บันทึกข้อมูล</button>
                     </div>
                 </form>
             </div>
@@ -102,34 +102,39 @@
     // ดึงข้อมูลจาก API มาแสดงในตาราง
     async function loadAssets() {
         try {
-            const res = await fetch(API_URL + '/');
+            const res = await fetch(API_URL);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            
             const data = await res.json();
             const tbody = document.getElementById('assetTableBody');
             tbody.innerHTML = '';
 
-            if (data.length === 0) {
+            if (!Array.isArray(data) || data.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">ยังไม่มีข้อมูลครุภัณฑ์</td></tr>`;
                 return;
             }
 
             data.forEach(item => {
                 let badgeClass = 'bg-success';
+                if (item.status === 'ถูกเบิกออก') badgeClass = 'bg-info text-dark';
                 if (item.status === 'ส่งซ่อม') badgeClass = 'bg-warning text-dark';
                 if (item.status === 'ชำรุด/แทงจำหน่าย') badgeClass = 'bg-danger';
 
+                const priceVal = parseFloat(item.price) || 0;
+
                 tbody.innerHTML += `
                     <tr>
-                        <td class="fw-bold">${item.asset_code}</td>
-                        <td>${item.name}</td>
+                        <td class="fw-bold">${item.asset_code || '-'}</td>
+                        <td>${item.name || '-'}</td>
                         <td>${item.category || '-'}</td>
                         <td>${item.department || '-'}</td>
-                        <td><span class="badge ${badgeClass}">${item.status}</span></td>
-                        <td>${Number(item.price).toLocaleString()}</td>
+                        <td><span class="badge ${badgeClass}">${item.status || 'ใช้งานปกติ'}</span></td>
+                        <td>${priceVal.toLocaleString()}</td>
                         <td>
                             ${item.qr_code_path ? `<img src="${item.qr_code_path}" width="35" height="35" class="rounded border">` : '-'}
                         </td>
                         <td class="text-center">
-                            <button class="btn btn-sm btn-outline-info me-1" onclick="editAsset(${item.id}, '${item.asset_code}', '${item.name}', '${item.category || ''}', '${item.department || ''}', '${item.status}', ${item.price})">
+                            <button class="btn btn-sm btn-outline-info me-1" onclick="editAsset(${item.id}, '${escapeHtml(item.asset_code)}', '${escapeHtml(item.name)}', '${escapeHtml(item.category || '')}', '${escapeHtml(item.department || '')}', '${escapeHtml(item.status)}', ${priceVal})">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteAsset(${item.id})">
@@ -140,9 +145,15 @@
                 `;
             });
         } catch (err) {
-            console.error(err);
+            console.error('Error loading assets:', err);
             document.getElementById('assetTableBody').innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
         }
+    }
+
+    // Helper Function ป้องกัน Special Characters ใน HTML
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
     // ล้างฟอร์ม Modal
@@ -166,7 +177,6 @@
         
         document.getElementById('modalTitle').innerText = 'แก้ไขข้อมูลครุภัณฑ์';
         
-        // ป้องกัน Modal ซ้อนทับหรือค้าง
         const modalEl = document.getElementById('assetModal');
         let modalInstance = bootstrap.Modal.getInstance(modalEl);
         if (!modalInstance) {
@@ -175,9 +185,23 @@
         modalInstance.show();
     }
 
+    // ปิด Modal และลบ Backdrop ค้าง
+    function closeModal() {
+        const modalEl = document.getElementById('assetModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    }
+
     // Submit ฟอร์ม (บันทึก / แก้ไข)
     document.getElementById('assetForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        
         const id = document.getElementById('assetId').value;
         const payload = {
             asset_code: document.getElementById('assetCode').value,
@@ -189,7 +213,11 @@
         };
 
         const method = id ? 'PUT' : 'POST';
-        const url = id ? `${API_URL}/${id}` : `${API_URL}/`;
+        const url = id ? `${API_URL}/${id}` : API_URL;
+
+        const btnSave = document.getElementById('btnSaveAsset');
+        btnSave.disabled = true;
+        btnSave.innerText = 'กำลังบันทึก...';
 
         try {
             const res = await fetch(url, {
@@ -199,16 +227,25 @@
             });
 
             if (res.ok) {
-                const modalEl = document.getElementById('assetModal');
-                const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                if (modalInstance) modalInstance.hide();
-                loadAssets();
+                closeModal();
+                resetForm();
+                await loadAssets();
             } else {
-                const error = await res.json();
-                alert('เกิดข้อผิดพลาด: ' + (error.detail || 'ไม่สามารถบันทึกได้'));
+                const errorData = await res.json().catch(() => ({}));
+                let detail = 'ไม่สามารถบันทึกได้';
+                if (typeof errorData.detail === 'string') {
+                    detail = errorData.detail;
+                } else if (Array.isArray(errorData.detail)) {
+                    detail = errorData.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join('\n');
+                }
+                alert('เกิดข้อผิดพลาด: ' + detail);
             }
         } catch (err) {
-            alert('ไม่สามารถเชื่อมต่อ Server ได้');
+            console.error('Fetch error:', err);
+            alert('ไม่สามารถเชื่อมต่อ Server ได้ กรุณาตรวจสอบการรัน Service ของ Backend');
+        } finally {
+            btnSave.disabled = false;
+            btnSave.innerText = 'บันทึกข้อมูล';
         }
     });
 
@@ -217,9 +254,13 @@
         if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?')) return;
         try {
             const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-            if (res.ok) loadAssets();
-            else alert('ลบข้อมูลไม่สำเร็จ');
+            if (res.ok) {
+                loadAssets();
+            } else {
+                alert('ลบข้อมูลไม่สำเร็จ');
+            }
         } catch (err) {
+            console.error('Delete error:', err);
             alert('เกิดข้อผิดพลาดในการสั่งลบ');
         }
     }

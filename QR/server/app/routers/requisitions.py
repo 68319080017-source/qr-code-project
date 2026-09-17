@@ -1,5 +1,6 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
@@ -15,25 +16,41 @@ def get_requisitions(db: Session = Depends(get_db)) -> Any:
     stmt = select(Requisition).order_by(Requisition.id.desc())
     return db.execute(stmt).scalars().all()
 
-@router.post("/", response_model=RequisitionResponse)
+@router.post("/", response_model=RequisitionResponse, status_code=status.HTTP_201_CREATED)
 def create_requisition(req_in: RequisitionCreate, db: Session = Depends(get_db)) -> Any:
+    # 1. ค้นหา Asset
     stmt = select(Asset).where(Asset.id == req_in.asset_id)
     asset = db.execute(stmt).scalar_one_or_none()
     
     if not asset:
         raise HTTPException(status_code=404, detail="ไม่พบข้อมูลครุภัณฑ์ในระบบ")
 
-    # เปลี่ยนสถานะ Asset เป็นถูกเบิกออก
-    asset.status = "ถูกเบิกออก"
+    # 2. ตรวจสอบสถานะว่าถูกเบิกไปแล้วหรือยัง
+    if asset.status == "ถูกเบิกออก":
+        raise HTTPException(status_code=400, detail="ครุภัณฑ์นี้ถูกเบิกออกไปแล้ว")
 
-    req_obj = Requisition(
-        asset_id=asset.id,
-        requester_name=req_in.requester_name,
-        department=req_in.department,
-        purpose=req_in.purpose
-    )
-    
-    db.add(req_obj)
-    db.commit()
-    db.refresh(req_obj)
-    return req_obj
+    try:
+        # 3. เปลี่ยนสถานะ Asset
+        asset.status = "ถูกเบิกออก"
+
+        # 4. สร้างวัตถุ Requisition
+        req_obj = Requisition(
+            asset_id=asset.id,
+            requester_name=req_in.requester_name,
+            department=req_in.department,
+            purpose=req_in.purpose or "เบิกใช้งานทั่วไป",
+            created_at=datetime.now() # ใส่วันที่ปัจจุบันป้องกัน created_at เป็น None
+        )
+        
+        db.add(req_obj)
+        db.commit()
+        db.refresh(req_obj)
+        return req_obj
+
+    except Exception as e:
+        db.rollback() # ย้อนกลับ Transaction ถ้ามีปัญหา
+        print(f"Database/Post Error: {str(e)}") # แสดงข้อมูล Error ใน Terminal
+        raise HTTPException(
+            status_code=500, 
+            detail=f"เกิดข้อผิดพลาดในการบันทึกข้อมูล: {str(e)}"
+        )

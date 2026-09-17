@@ -6,9 +6,9 @@
 <style>
     /* Custom Styling match with Glassmorphism Theme */
     .dashboard-card {
-        background: rgba(28, 37, 65, 0.6) !important;
+        background: rgba(28, 37, 65, 0.6);
         backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 16px;
         color: #f8fafc;
         transition: all 0.25s ease-in-out;
@@ -26,13 +26,10 @@
         align-items: center;
     }
     .quick-action-btn:hover {
-        background-color: rgba(29, 78, 216, 0.2) !important;
-        border-color: rgba(29, 78, 216, 0.5) !important;
-        color: #ffffff !important;
-        transform: translateX(4px);
-    }
-    .quick-action-btn .btn-title {
+        background-color: rgba(29, 78, 216, 0.2);
+        border-color: rgba(29, 78, 216, 0.5);
         color: #ffffff;
+        transform: translateX(4px);
     }
 
     /* Icon Box */
@@ -45,28 +42,81 @@
         justify-content: center;
         font-size: 1.3rem;
     }
+
+    /* Timeline Custom Style */
+    .timeline-item {
+        border-left: 2px solid rgba(255, 255, 255, 0.1);
+        padding-left: 18px;
+        position: relative;
+        padding-bottom: 16px;
+    }
+    .timeline-item:last-child {
+        padding-bottom: 0;
+        border-left: 2px solid transparent;
+    }
+    .timeline-badge {
+        position: absolute;
+        left: -11px;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+    }
+
+    /* Light Theme Specific Adjustments */
+    [data-bs-theme="light"] body {
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+    }
+    [data-bs-theme="light"] .dashboard-card {
+        background: #ffffff !important;
+        border-color: #e2e8f0 !important;
+        color: #0f172a !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    [data-bs-theme="light"] .card-title-text {
+        color: #0f172a !important;
+    }
+    [data-bs-theme="light"] .quick-action-btn {
+        background-color: #f8fafc;
+        border-color: #e2e8f0;
+        color: #334155;
+    }
+    [data-bs-theme="light"] .quick-action-btn:hover {
+        background-color: #e0e7ff !important;
+        border-color: #818cf8 !important;
+        color: #1e1b4b !important;
+    }
+    [data-bs-theme="light"] .timeline-item {
+        border-left-color: #cbd5e1;
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4 class="fw-bold mb-1"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Overview Dashboard</h4>
+        <h4 class="fw-bold mb-1 card-title-text"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Overview Dashboard</h4>
         <p class="mb-0 text-secondary">สรุปภาพรวมระบบและสถานะครุภัณฑ์แบบ Real-time</p>
     </div>
-    <div>
+    
+    <div class="d-flex align-items-center gap-2">
         <a href="/assets" class="btn btn-danger px-3 rounded-pill shadow-sm fw-bold" style="background: linear-gradient(135deg, var(--ta-red), var(--ta-blue)); border: none;">
             <i class="bi bi-plus-lg me-2"></i>เพิ่มครุภัณฑ์ใหม่
         </a>
     </div>
 </div>
 
-<!-- Stat Cards 5 ช่อง (ปรับ Layout ให้รองรับรายการถูกเบิกออก) -->
+<!-- Stat Cards 5 ช่อง -->
 <div class="row g-3 mb-4">
     <div class="col-md">
         <div class="dashboard-card p-3">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-secondary small fw-medium">ครุภัณฑ์ทั้งหมด</span>
-                    <h2 class="fw-bold text-white mb-0 mt-1" id="statTotal">0</h2>
+                    <h2 class="fw-bold card-title-text mb-0 mt-1" id="statTotal">0</h2>
                 </div>
                 <div class="icon-box bg-primary bg-opacity-25 text-primary border border-primary border-opacity-25">
                     <i class="bi bi-boxes"></i>
@@ -128,12 +178,12 @@
     </div>
 </div>
 
-<!-- โซน Chart & Quick Actions -->
-<div class="row g-4">
+<!-- Chart & Quick Actions -->
+<div class="row g-4 mb-4">
     <div class="col-lg-7">
         <div class="dashboard-card p-4 h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="fw-bold mb-0 text-white"><i class="bi bi-pie-chart-fill me-2 text-info"></i>สัดส่วนสถานะครุภัณฑ์</h6>
+                <h6 class="fw-bold mb-0 card-title-text"><i class="bi bi-pie-chart-fill me-2 text-info"></i>สัดส่วนสถานะครุภัณฑ์</h6>
             </div>
             <div class="d-flex justify-content-center align-items-center py-2" style="min-height: 250px;">
                 <canvas id="statusChart" style="max-height: 250px;"></canvas>
@@ -143,15 +193,15 @@
     
     <div class="col-lg-5">
         <div class="dashboard-card p-4 h-100">
-            <h6 class="fw-bold mb-3 text-white"><i class="bi bi-lightning-charge-fill me-2 text-warning"></i>เมนูดำเนินการด่วน</h6>
+            <h6 class="fw-bold mb-3 card-title-text"><i class="bi bi-lightning-charge-fill me-2 text-warning"></i>เมนูดำเนินการด่วน</h6>
             <div class="d-grid gap-3">
                 <a href="/requisitions" class="quick-action-btn">
                     <div class="icon-box bg-info bg-opacity-25 text-info me-3 border border-info border-opacity-25" style="width:40px; height:40px;">
                         <i class="bi bi-box-arrow-right fs-6"></i>
                     </div>
                     <div>
-                        <div class="fw-bold btn-title">ระบบเบิกอุปกรณ์</div>
-                        <div class="small text-secondary">บันทึกเบิกของใช้ สายน้อย แรม ฯลฯ</div>
+                        <div class="fw-bold card-title-text">ระบบเบิกอุปกรณ์</div>
+                        <div class="small text-secondary">บันทึกเบิกของใช้ สายแลน แรม ฯลฯ</div>
                     </div>
                 </a>
                 <a href="/assets" class="quick-action-btn">
@@ -159,7 +209,7 @@
                         <i class="bi bi-box-seam fs-6"></i>
                     </div>
                     <div>
-                        <div class="fw-bold btn-title">จัดการครุภัณฑ์</div>
+                        <div class="fw-bold card-title-text">จัดการครุภัณฑ์</div>
                         <div class="small text-secondary">เพิ่ม แก้ไข หรือลบข้อมูลครุภัณฑ์</div>
                     </div>
                 </a>
@@ -168,7 +218,7 @@
                         <i class="bi bi-wrench-adjustable fs-6"></i>
                     </div>
                     <div>
-                        <div class="fw-bold btn-title">ระบบแจ้งซ่อมบำรุง</div>
+                        <div class="fw-bold card-title-text">ระบบแจ้งซ่อมบำรุง</div>
                         <div class="small text-secondary">บันทึกประวัติการซ่อมและส่งซ่อม</div>
                     </div>
                 </a>
@@ -177,16 +227,43 @@
     </div>
 </div>
 
+<!-- Audit Log Timeline -->
+<div class="row">
+    <div class="col-12">
+        <div class="dashboard-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0 card-title-text"><i class="bi bi-clock-history me-2 text-warning"></i>ประวัติการทำรายการล่าสุด (Audit Log)</h6>
+                <span class="badge bg-primary rounded-pill px-3 py-2">Real-time</span>
+            </div>
+            <div class="timeline-container mt-3" id="auditLogContainer">
+                <div class="text-center text-secondary py-3">กำลังโหลดประวัติ...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- โหลด Chart.js ก่อนเรียกใช้งาน script -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
     let myChart = null;
 
-    document.addEventListener('DOMContentLoaded', loadDashboard);
+    document.addEventListener('DOMContentLoaded', () => {
+        loadDashboard();
+        loadAuditLogs();
+        
+        // รับค่าการเปลี่ยนธีมจาก observer หรือสตรีมธีมหลัก (ถ้ามี)
+        const savedTheme = localStorage.getItem('themePref') || 'dark';
+        applyTheme(savedTheme);
+    });
 
     async function loadDashboard() {
         try {
             const res = await fetch('/api/v1/assets/summary/stats');
+            if (!res.ok) {
+                renderChart({ normal: 0, withdrawn: 0, maintenance: 0, retired: 0 });
+                return;
+            }
             const data = await res.json();
 
             document.getElementById('statTotal').innerText = data.total || 0;
@@ -198,27 +275,80 @@
             renderChart(data);
         } catch (err) {
             console.error('Error loading stats:', err);
+            renderChart({ normal: 0, withdrawn: 0, maintenance: 0, retired: 0 });
+        }
+    }
+
+    async function loadAuditLogs() {
+        const container = document.getElementById('auditLogContainer');
+        try {
+            const res = await fetch('/api/v1/assets/audit-logs');
+            if (!res.ok) throw new Error('Failed to fetch audit logs');
+            
+            const logs = await res.json();
+
+            if (!logs || logs.length === 0) {
+                container.innerHTML = `<div class="text-secondary small py-2">ยังไม่มีรายการบันทึกประวัติ</div>`;
+                return;
+            }
+
+            container.innerHTML = logs.map(log => `
+                <div class="timeline-item">
+                    <div class="timeline-badge bg-${getBadgeColor(log.action)} text-dark">
+                        <i class="bi ${getIcon(log.action)}"></i>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="fw-bold card-title-text small">${log.description}</div>
+                        <small class="text-secondary" style="font-size: 0.75rem;">${log.timestamp}</small>
+                    </div>
+                    <small class="text-secondary d-block mt-1">โดย: ${log.user || 'Admin'}</small>
+                </div>
+            `).join('');
+        } catch (err) {
+            console.error('Audit Log Error:', err);
+            container.innerHTML = `<div class="text-secondary small py-2">ไม่พบข้อมูลประวัติรายการ หรือยังไม่มีการทำรายการ</div>`;
+        }
+    }
+
+    function getBadgeColor(action) {
+        if (action === 'withdraw') return 'info';
+        if (action === 'repair') return 'warning';
+        if (action === 'add') return 'success';
+        return 'secondary';
+    }
+
+    function getIcon(action) {
+        if (action === 'withdraw') return 'bi-box-arrow-right';
+        if (action === 'repair') return 'bi-wrench';
+        if (action === 'add') return 'bi-plus-lg';
+        return 'bi-info-circle';
+    }
+
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-bs-theme', theme);
+        
+        if (myChart && myChart.options) {
+            myChart.options.plugins.legend.labels.color = theme === 'light' ? '#334155' : '#cbd5e1';
+            myChart.update();
         }
     }
 
     function renderChart(data) {
-        const ctx = document.getElementById('statusChart').getContext('2d');
+        const chartEl = document.getElementById('statusChart');
+        if (!chartEl || typeof Chart === 'undefined') return;
 
-        if (myChart) {
-            myChart.destroy();
-        }
+        const ctx = chartEl.getContext('2d');
+        if (myChart) myChart.destroy();
+
+        const currentTheme = document.documentElement.getAttribute('data-bs-theme') || 'dark';
+        const labelColor = currentTheme === 'light' ? '#334155' : '#cbd5e1';
 
         myChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: ['ใช้งานปกติ', 'ถูกเบิกออก', 'ส่งซ่อม', 'ชำรุด/จำหน่าย'],
                 datasets: [{
-                    data: [
-                        data.normal || 0, 
-                        data.withdrawn || 0, 
-                        data.maintenance || 0, 
-                        data.retired || 0
-                    ],
+                    data: [data.normal || 0, data.withdrawn || 0, data.maintenance || 0, data.retired || 0],
                     backgroundColor: ['#10b981', '#06b6d4', '#f59e0b', '#ef4444'],
                     borderWidth: 0,
                     hoverOffset: 6
@@ -231,9 +361,9 @@
                     legend: {
                         position: 'bottom',
                         labels: {
-                            color: '#cbd5e1',
+                            color: labelColor,
                             padding: 16,
-                            font: { family: 'Sarabun', size: 13 }
+                            font: { size: 13 }
                         }
                     }
                 },

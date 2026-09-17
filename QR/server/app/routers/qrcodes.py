@@ -1,23 +1,25 @@
+import io
+import qrcode
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-import qrcode
-import io
 from app.database import get_db
 
 router = APIRouter()
 
+# 🌐 ใส่ URL บน Render ของคุณที่เปิดได้ 24 ชม. ตรงนี้ (เช่น https://xxx-nj6.onrender.com)
+RENDER_URL = "https://your-app-name.onrender.com" 
+
 @router.get("/generate/{asset_code}")
 def generate_qr(asset_code: str, request: Request, db: Session = Depends(get_db)):
-    # ดึง URL จาก Render อัตโนมัติ (ไม่ใช้ ngrok แล้ว)
-    base_url = str(request.base_url).rstrip('/')
-    redirect_url = f"{base_url}/scan/{asset_code}"
+    # บังคับฝัง URL ของ Render ลงใน QR Code ทุกใบตลอดเวลา
+    redirect_url = f"{RENDER_URL.rstrip('/')}/scan/{asset_code}"
     
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
         box_size=10,
-        border=4,
+        border=4
     )
     qr.add_data(redirect_url)
     qr.make(fit=True)
