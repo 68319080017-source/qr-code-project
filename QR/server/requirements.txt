@@ -16,3 +16,4 @@ pandas
 pydantic
 pydantic-settings
 email-validator
+requests
