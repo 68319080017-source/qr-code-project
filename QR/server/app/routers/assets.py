@@ -22,7 +22,7 @@ router = APIRouter()
 THAI_TZ = zoneinfo.ZoneInfo("Asia/Bangkok")
 
 # =========================================================
-# CLOUDINARY CONFIG (ดึงค่าจาก Environment Variable บน Render)
+# CLOUDINARY CONFIG
 # =========================================================
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -87,7 +87,7 @@ def generate_qr_code(asset_code: str) -> str:
 # ENDPOINTS
 # =========================================================
 
-# 1. ดึงข้อมูลครุภัณฑ์ทั้งหมด (พร้อมตัวเลือกค้นหา)
+# 1. ดึงข้อมูลครุภัณฑ์ทั้งหมด (พร้อมตัวเลือกลดความเสี่ยงกรณีไม่มีคอลัมน์รูป)
 @router.get("/", response_model=List[AssetResponse])
 def get_all_assets(
     db: Session = Depends(get_db),
@@ -120,9 +120,13 @@ def get_all_assets(
 
     assets = query.order_by(Asset.id.desc()).offset(skip).limit(limit).all()
 
+    # เติมค่าปลอดภัย ป้องกัน AttributeError หากใน DB ยังไม่มีคอลัมน์รูปภาพ
     for asset in assets:
         if not getattr(asset, "location", None):
             setattr(asset, "location", getattr(asset, "building", None) or getattr(asset, "department", None))
+        
+        img_val = getattr(asset, "image_path", None) or getattr(asset, "image_url", None) or getattr(asset, "image", None)
+        setattr(asset, "image_path", img_val)
 
     return assets
 
@@ -145,6 +149,9 @@ def get_asset_by_code(asset_code: str, db: Session = Depends(get_db)):
     
     if not getattr(asset, "location", None):
         setattr(asset, "location", getattr(asset, "building", None) or getattr(asset, "department", None))
+
+    img_val = getattr(asset, "image_path", None) or getattr(asset, "image_url", None) or getattr(asset, "image", None)
+    setattr(asset, "image_path", img_val)
 
     return asset
 
@@ -239,6 +246,7 @@ def create_asset(asset_in: AssetCreate, db: Session = Depends(get_db)):
         asset_dict["qr_code_path"] = qr_path
         
         raw_location = asset_dict.pop("location", None)
+        asset_dict.pop("image_path", None)
         
         valid_columns = {c.name for c in Asset.__table__.columns}
         filtered_data = {k: v for k, v in asset_dict.items() if k in valid_columns}
@@ -255,6 +263,7 @@ def create_asset(asset_in: AssetCreate, db: Session = Depends(get_db)):
         db.refresh(new_asset)
         
         setattr(new_asset, "location", raw_location or getattr(new_asset, "building", None))
+        setattr(new_asset, "image_path", None)
         return new_asset
 
     except Exception as e:
@@ -265,7 +274,7 @@ def create_asset(asset_in: AssetCreate, db: Session = Depends(get_db)):
         )
 
 
-# 6. อัปโหลดรูปภาพครุภัณฑ์ขึ้น Cloudinary ถาวร 24 ชม.
+# 6. อัปโหลดรูปภาพครุภัณฑ์ขึ้น Cloudinary ถาวร
 @router.post("/{asset_id}/upload-image")
 async def upload_asset_image(
     asset_id: int, 
@@ -277,17 +286,15 @@ async def upload_asset_image(
         raise HTTPException(status_code=404, detail="ไม่พบรายการครุภัณฑ์")
 
     try:
-        # ยิงรูปขึ้น Cloudinary ถาวร
         result = cloudinary.uploader.upload(file.file, folder="asset_photos")
         image_url = result.get("secure_url")
 
-        # บันทึก URL ลงคอลัมน์รูปใน Database
         valid_columns = {c.name for c in Asset.__table__.columns}
         if "image_path" in valid_columns:
             asset.image_path = image_url
-        elif "image_url" in valid_columns:
+        if "image_url" in valid_columns:
             asset.image_url = image_url
-        elif "image" in valid_columns:
+        if "image" in valid_columns:
             asset.image = image_url
 
         db.commit()
@@ -308,6 +315,7 @@ def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get
     
     update_data = asset_in.model_dump() if hasattr(asset_in, "model_dump") else asset_in.dict()
     loc_val = update_data.pop("location", None)
+    update_data.pop("image_path", None)
 
     valid_columns = {c.name for c in Asset.__table__.columns}
     
@@ -324,6 +332,8 @@ def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get
     db.commit()
     db.refresh(asset)
     setattr(asset, "location", loc_val or getattr(asset, "building", None))
+    img_val = getattr(asset, "image_path", None) or getattr(asset, "image_url", None) or getattr(asset, "image", None)
+    setattr(asset, "image_path", img_val)
     return asset
 
 
