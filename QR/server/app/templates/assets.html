@@ -8,7 +8,7 @@
         <h4 class="fw-bold mb-1"><i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>รายการครุภัณฑ์ทั้งหมด</h4>
         <p class="mb-0 text-muted">จัดการข้อมูล เพิ่ม แก้ไข และตรวจสอบสถานะครุภัณฑ์</p>
     </div>
-    <button class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#assetModal" onclick="resetForm()">
+    <button class="btn btn-primary px-3" id="btn-add-asset">
         <i class="fa-solid fa-plus me-2"></i>เพิ่มครุภัณฑ์
     </button>
 </div>
@@ -45,7 +45,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold" id="modalTitle">เพิ่มครุภัณฑ์ใหม่</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" id="btn-close-modal-x" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="assetForm">
@@ -84,7 +84,6 @@
                         </div>
                     </div>
 
-                    <!-- ช่องอัปโหลดรูปภาพครุภัณฑ์ -->
                     <div class="mb-3 border-top pt-3">
                         <label class="form-label fw-bold text-primary"><i class="fa-solid fa-camera me-1"></i>รูปภาพครุภัณฑ์ (ฝากรูปถาวร)</label>
                         <input type="file" class="form-control" id="assetImage" accept="image/*">
@@ -92,7 +91,7 @@
                     </div>
 
                     <div class="text-end mt-4">
-                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">ยกเลิก</button>
+                        <button type="button" class="btn btn-secondary me-2" id="btn-close-modal">ยกเลิก</button>
                         <button type="submit" class="btn btn-primary" id="btnSaveAsset">บันทึกข้อมูล</button>
                     </div>
                 </form>
@@ -104,36 +103,70 @@
 
 {% block extra_js %}
 <script>
+(function() {
     const API_URL = '/api/v1/assets';
+    let assetModalInstance = null;
 
-    // 1. ประกาศ Helper Functions ไว้ที่ window object เพื่อให้ HTML onclick เรียกใช้ได้เสมอ
-    window.escapeHtml = function(str) {
-        if (!str) return '';
-        return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    };
+    function getModal() {
+        const el = document.getElementById('assetModal');
+        if (!el) return null;
+        if (!assetModalInstance && typeof bootstrap !== 'undefined') {
+            assetModalInstance = new bootstrap.Modal(el);
+        }
+        return assetModalInstance;
+    }
 
-    window.resetForm = function() {
+    function resetForm() {
         const form = document.getElementById('assetForm');
         if (form) form.reset();
         document.getElementById('assetId').value = '';
         document.getElementById('assetImage').value = '';
         document.getElementById('modalTitle').innerText = 'เพิ่มครุภัณฑ์ใหม่';
         document.getElementById('assetCode').disabled = false;
+    }
+
+    function closeModal() {
+        const modal = getModal();
+        if (modal) modal.hide();
+    }
+
+    window.escapeHtml = function(str) {
+        if (!str) return '';
+        return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
     };
 
-    window.closeModal = function() {
-        const modalEl = document.getElementById('assetModal');
-        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-            const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-            modalInstance.hide();
-        } else {
-            modalEl.classList.remove('show');
-            modalEl.style.display = 'none';
+    window.editAsset = function(id, code, name, cat, dept, status, price) {
+        document.getElementById('assetId').value = id;
+        document.getElementById('assetCode').value = code;
+        document.getElementById('assetCode').disabled = true;
+        document.getElementById('assetName').value = name;
+        document.getElementById('assetCategory').value = cat;
+        document.getElementById('assetDepartment').value = dept;
+        document.getElementById('assetStatus').value = status;
+        document.getElementById('assetPrice').value = price;
+        document.getElementById('assetImage').value = '';
+        
+        document.getElementById('modalTitle').innerText = 'แก้ไขข้อมูลครุภัณฑ์';
+        const modal = getModal();
+        if (modal) modal.show();
+    };
+
+    window.deleteAsset = async function(id) {
+        if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?')) return;
+        try {
+            const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadAssets();
+            } else {
+                alert('ลบข้อมูลไม่สำเร็จ');
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+            alert('เกิดข้อผิดพลาดในการสั่งลบ');
         }
     };
 
-    // 2. ฟังก์ชันดึงข้อมูลแบบมี Error Handling ป้องกันหน้าค้าง
-    window.loadAssets = async function() {
+    async function loadAssets() {
         const tbody = document.getElementById('assetTableBody');
         if (!tbody) return;
 
@@ -191,48 +224,19 @@
             console.error('Error loading assets:', err);
             tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูลจากเซิร์ฟเวอร์</td></tr>`;
         }
-    };
+    }
 
-    // 3. เตรียมฟอร์มสำหรับแก้ไข
-    window.editAsset = function(id, code, name, cat, dept, status, price) {
-        document.getElementById('assetId').value = id;
-        document.getElementById('assetCode').value = code;
-        document.getElementById('assetCode').disabled = true;
-        document.getElementById('assetName').value = name;
-        document.getElementById('assetCategory').value = cat;
-        document.getElementById('assetDepartment').value = dept;
-        document.getElementById('assetStatus').value = status;
-        document.getElementById('assetPrice').value = price;
-        document.getElementById('assetImage').value = '';
-        
-        document.getElementById('modalTitle').innerText = 'แก้ไขข้อมูลครุภัณฑ์';
-        
-        const modalEl = document.getElementById('assetModal');
-        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-            let modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-            modalInstance.show();
-        }
-    };
-
-    // 4. สั่งลบครุภัณฑ์
-    window.deleteAsset = async function(id) {
-        if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?')) return;
-        try {
-            const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                loadAssets();
-            } else {
-                alert('ลบข้อมูลไม่สำเร็จ');
-            }
-        } catch (err) {
-            console.error('Delete error:', err);
-            alert('เกิดข้อผิดพลาดในการสั่งลบ');
-        }
-    };
-
-    // 5. บันทึกข้อมูล (Submit Event)
     document.addEventListener('DOMContentLoaded', () => {
         loadAssets();
+
+        document.getElementById('btn-add-asset')?.addEventListener('click', () => {
+            resetForm();
+            const modal = getModal();
+            if (modal) modal.show();
+        });
+
+        document.getElementById('btn-close-modal')?.addEventListener('click', closeModal);
+        document.getElementById('btn-close-modal-x')?.addEventListener('click', closeModal);
 
         const form = document.getElementById('assetForm');
         if (form) {
@@ -302,5 +306,6 @@
             });
         }
     });
+})();
 </script>
 {% endblock %}

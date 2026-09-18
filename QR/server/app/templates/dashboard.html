@@ -103,7 +103,7 @@
     </div>
     
     <div class="d-flex align-items-center gap-2">
-        <a href="/assets" class="btn btn-danger px-3 rounded-pill shadow-sm fw-bold" style="background: linear-gradient(135deg, var(--ta-red), var(--ta-blue)); border: none;">
+        <a href="/assets" class="btn btn-danger px-3 rounded-pill shadow-sm fw-bold" style="background: linear-gradient(135deg, var(--ta-red, #ef4444), var(--ta-blue, #3b82f6)); border: none;">
             <i class="bi bi-plus-lg me-2"></i>เพิ่มครุภัณฑ์ใหม่
         </a>
     </div>
@@ -248,11 +248,20 @@
 <script>
     let myChart = null;
 
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         loadDashboard();
         loadAuditLogs();
         
-        // รับค่าการเปลี่ยนธีมจาก observer หรือสตรีมธีมหลัก (ถ้ามี)
         const savedTheme = localStorage.getItem('themePref') || 'dark';
         applyTheme(savedTheme);
     });
@@ -298,10 +307,10 @@
                         <i class="bi ${getIcon(log.action)}"></i>
                     </div>
                     <div class="d-flex justify-content-between align-items-center">
-                        <div class="fw-bold card-title-text small">${log.description}</div>
-                        <small class="text-secondary" style="font-size: 0.75rem;">${log.timestamp}</small>
+                        <div class="fw-bold card-title-text small">${escapeHtml(log.description || '')}</div>
+                        <small class="text-secondary" style="font-size: 0.75rem;">${escapeHtml(log.timestamp || '')}</small>
                     </div>
-                    <small class="text-secondary d-block mt-1">โดย: ${log.user || 'Admin'}</small>
+                    <small class="text-secondary d-block mt-1">โดย: ${escapeHtml(log.user || 'Admin')}</small>
                 </div>
             `).join('');
         } catch (err) {
