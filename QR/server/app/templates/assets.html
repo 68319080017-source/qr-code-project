@@ -85,7 +85,7 @@
                         </div>
                     </div>
 
-                    <!-- [เพิ่มใหม่] ช่องเลือกรูปภาพครุภัณฑ์ -->
+                    <!-- ช่องอัปโหลดรูปภาพครุภัณฑ์ -->
                     <div class="mb-3 border-top pt-3">
                         <label class="form-label fw-bold text-primary"><i class="fa-solid fa-camera me-1"></i>รูปภาพครุภัณฑ์ (ฝากรูปถาวร)</label>
                         <input type="file" class="form-control" id="assetImage" accept="image/*">
@@ -103,7 +103,8 @@
 </div>
 
 <script>
-    const API_URL = '/assets';
+    // แก้จุดนี้: กำหนด Path ไปที่ REST API หลังบ้านที่ถูกต้อง
+    const API_URL = '/api/v1/assets';
 
     // โหลดข้อมูลเมื่อเปิดหน้าเว็บ
     document.addEventListener('DOMContentLoaded', loadAssets);
@@ -111,7 +112,7 @@
     // ดึงข้อมูลจาก API มาแสดงในตาราง
     async function loadAssets() {
         try {
-            const res = await fetch(API_URL + '/');
+            const res = await fetch(API_URL);
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             
             const data = await res.json();
@@ -131,7 +132,6 @@
 
                 const priceVal = parseFloat(item.price) || 0;
 
-                // [เพิ่มใหม่] เช็กรูปภาพครุภัณฑ์
                 const imgUrl = item.image_path || item.image_url;
                 const imgThumb = imgUrl 
                     ? `<img src="${imgUrl}" width="40" height="40" class="rounded border object-fit-cover shadow-sm" style="cursor:pointer;" onclick="window.open('${imgUrl}', '_blank')">`
@@ -176,7 +176,7 @@
     function resetForm() {
         document.getElementById('assetId').value = '';
         document.getElementById('assetForm').reset();
-        document.getElementById('assetImage').value = ''; // [เพิ่มใหม่] เคลียร์ช่องรูป
+        document.getElementById('assetImage').value = '';
         document.getElementById('modalTitle').innerText = 'เพิ่มครุภัณฑ์ใหม่';
         document.getElementById('assetCode').disabled = false;
     }
@@ -185,13 +185,13 @@
     function editAsset(id, code, name, cat, dept, status, price) {
         document.getElementById('assetId').value = id;
         document.getElementById('assetCode').value = code;
-        document.getElementById('assetCode').disabled = true; // ห้ามแก้รหัส
+        document.getElementById('assetCode').disabled = true;
         document.getElementById('assetName').value = name;
         document.getElementById('assetCategory').value = cat;
         document.getElementById('assetDepartment').value = dept;
         document.getElementById('assetStatus').value = status;
         document.getElementById('assetPrice').value = price;
-        document.getElementById('assetImage').value = ''; // [เพิ่มใหม่] เคลียร์ช่องรูป
+        document.getElementById('assetImage').value = '';
         
         document.getElementById('modalTitle').innerText = 'แก้ไขข้อมูลครุภัณฑ์';
         
@@ -216,7 +216,7 @@
         document.body.style.paddingRight = '';
     }
 
-    // Submit ฟอร์ม (บันทึก / แก้ไข) + [เพิ่มใหม่] ส่งรูปขึ้น Cloudinary
+    // Submit ฟอร์ม (บันทึก / แก้ไข)
     document.getElementById('assetForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -231,7 +231,7 @@
         };
 
         const method = id ? 'PUT' : 'POST';
-        const url = id ? `${API_URL}/${id}` : `${API_URL}/`;
+        const url = id ? `${API_URL}/${id}` : API_URL;
 
         const btnSave = document.getElementById('btnSaveAsset');
         btnSave.disabled = true;
@@ -248,7 +248,7 @@
                 const savedAsset = await res.json();
                 const targetId = id || savedAsset.id;
 
-                // [เพิ่มใหม่] ถ้ามีการเลือกรูปภาพ ให้ยิงส่งไป Cloudinary
+                // ถ้ามีการแนบไฟล์รูปภาพ ให้ส่งอัปโหลดไป Cloudinary
                 const imageFile = document.getElementById('assetImage').files[0];
                 if (imageFile && targetId) {
                     btnSave.innerText = 'กำลังอัปโหลดรูปภาพ...';
