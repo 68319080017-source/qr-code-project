@@ -1,12 +1,11 @@
 import os
 import qrcode
-from typing import List, Optional, Any
-from datetime import datetime
+from typing import List, Optional
 import zoneinfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_
+from sqlalchemy import or_
 from pydantic import BaseModel
 
 import cloudinary
@@ -239,7 +238,7 @@ def get_asset_timeline(asset_id: int, db: Session = Depends(get_db)):
     }
 
 
-# 5. เพิ่มครุภัณฑ์ใหม่ (แก้ไขให้รองรับ Form Data และอัปโหลดไฟล์รูปภาพ)
+# 5. เพิ่มครุภัณฑ์ใหม่
 @router.post("/", response_model=AssetResponse, status_code=status.HTTP_201_CREATED)
 async def create_asset(
     asset_code: str = Form(...),
@@ -257,10 +256,8 @@ async def create_asset(
         raise HTTPException(status_code=400, detail="รหัสครุภัณฑ์นี้มีในระบบแล้ว")
     
     try:
-        # สร้าง QR Code
         qr_path = generate_qr_code(asset_code)
         
-        # อัปโหลดรูปภาพไปยัง Cloudinary (ถ้ามีส่งไฟล์มา)
         image_url = None
         if file and file.filename:
             try:
@@ -347,32 +344,51 @@ async def upload_asset_image(
         raise HTTPException(status_code=500, detail=f"Upload Error: {str(e)}")
 
 
-# 7. แก้ไขข้อมูลครุภัณฑ์
+# 7. แก้ไขข้อมูลครุภัณฑ์ (รองรับ Form Data + Re-upload Image)
 @router.put("/{asset_id}", response_model=AssetResponse)
-def update_asset(asset_id: int, asset_in: AssetUpdate, db: Session = Depends(get_db)):
+async def update_asset(
+    asset_id: int,
+    asset_code: Optional[str] = Form(None),
+    name: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
+    department: Optional[str] = Form(None),
+    location: Optional[str] = Form(None),
+    asset_status: Optional[str] = Form(None, alias="status"),
+    price: Optional[float] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="ไม่พบรายการครุภัณฑ์")
     
-    update_data = asset_in.model_dump() if hasattr(asset_in, "model_dump") else asset_in.dict()
-    loc_val = update_data.pop("location", None)
-    update_data.pop("image_path", None)
-
     valid_columns = {c.name for c in Asset.__table__.columns}
     
-    if loc_val:
-        if "location" in valid_columns:
-            update_data["location"] = loc_val
-        elif "building" in valid_columns:
-            update_data["building"] = loc_val
+    if asset_code is not None and hasattr(asset, "asset_code"): asset.asset_code = asset_code
+    if name is not None and hasattr(asset, "name"): asset.name = name
+    if category is not None and hasattr(asset, "category"): asset.category = category
+    if department is not None and hasattr(asset, "department"): asset.department = department
+    if asset_status is not None and hasattr(asset, "status"): asset.status = asset_status
+    if price is not None and hasattr(asset, "price"): asset.price = price
+    
+    if location is not None:
+        if "location" in valid_columns: asset.location = location
+        elif "building" in valid_columns: asset.building = location
 
-    for key, value in update_data.items():
-        if key in valid_columns and hasattr(asset, key):
-            setattr(asset, key, value)
-        
+    if file and file.filename:
+        try:
+            result = cloudinary.uploader.upload(file.file, folder="asset_photos")
+            image_url = result.get("secure_url")
+            if "image_path" in valid_columns: asset.image_path = image_url
+            if "image_url" in valid_columns: asset.image_url = image_url
+            if "image" in valid_columns: asset.image = image_url
+        except Exception as upload_err:
+            print(f"[Cloudinary Update Error]: {upload_err}")
+
     db.commit()
     db.refresh(asset)
-    setattr(asset, "location", loc_val or getattr(asset, "building", None))
+    
+    setattr(asset, "location", location or getattr(asset, "building", None))
     img_val = getattr(asset, "image_path", None) or getattr(asset, "image_url", None) or getattr(asset, "image", None)
     setattr(asset, "image_path", img_val)
     return asset

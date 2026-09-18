@@ -75,7 +75,7 @@
 <!-- Modal เพิ่มครุภัณฑ์ใหม่ -->
 <div class="modal fade" id="addAssetModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content text-white" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px;">
+        <div class="modal-content text-white" style="background: var(--bg-card, #1e293b); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 20px;">
             <div class="modal-header border-bottom border-secondary">
                 <h5 class="modal-title fw-bold text-warning"><i class="bi bi-plus-circle me-2"></i>เพิ่มรายการครุภัณฑ์ใหม่</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -261,13 +261,12 @@
         }
     }
 
-    // ยิง API บันทึกข้อมูลครุภัณฑ์ใหม่ (ปรับปรุงการอ่าน Error Message)
+    // ยิง API บันทึกข้อมูลครุภัณฑ์ใหม่
     async function submitAddAsset(event) {
         event.preventDefault();
         const form = document.getElementById('addAssetForm');
         const formData = new FormData(form);
 
-        // ตรวจสอบฟิลด์ราคาไม่ให้ส่งค่าว่างเปล่าเป็น String
         const priceVal = formData.get('price');
         if (!priceVal) {
             formData.set('price', '0.00');
