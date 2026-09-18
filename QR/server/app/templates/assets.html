@@ -132,7 +132,12 @@
 
     window.escapeHtml = function(str) {
         if (!str) return '';
-        return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     };
 
     window.editAsset = function(id, code, name, cat, dept, status, price) {
@@ -195,20 +200,26 @@
                     ? `<img src="${imgUrl}" width="40" height="40" class="rounded border object-fit-cover shadow-sm" style="cursor:pointer;" onclick="window.open('${imgUrl}', '_blank')">`
                     : `<span class="text-muted"><i class="fa-solid fa-image text-secondary"></i></span>`;
 
+                const safeCode = escapeHtml(item.asset_code || '');
+                const safeName = escapeHtml(item.name || '');
+                const safeCat = escapeHtml(item.category || '');
+                const safeDept = escapeHtml(item.department || '');
+                const safeStatus = escapeHtml(item.status || '');
+
                 rowsHtml += `
                     <tr>
                         <td>${imgThumb}</td>
-                        <td class="fw-bold">${item.asset_code || '-'}</td>
-                        <td>${item.name || '-'}</td>
-                        <td>${item.category || '-'}</td>
-                        <td>${item.department || '-'}</td>
-                        <td><span class="badge ${badgeClass}">${item.status || 'ใช้งานปกติ'}</span></td>
+                        <td class="fw-bold">${safeCode || '-'}</td>
+                        <td>${safeName || '-'}</td>
+                        <td>${safeCat || '-'}</td>
+                        <td>${safeDept || '-'}</td>
+                        <td><span class="badge ${badgeClass}">${safeStatus || 'ใช้งานปกติ'}</span></td>
                         <td>${priceVal.toLocaleString()}</td>
                         <td>
                             ${item.qr_code_path ? `<img src="${item.qr_code_path}" width="35" height="35" class="rounded border">` : '-'}
                         </td>
                         <td class="text-center">
-                            <button class="btn btn-sm btn-outline-info me-1" onclick="editAsset(${item.id}, '${escapeHtml(item.asset_code)}', '${escapeHtml(item.name)}', '${escapeHtml(item.category || '')}', '${escapeHtml(item.department || '')}', '${escapeHtml(item.status)}', ${priceVal})">
+                            <button class="btn btn-sm btn-outline-info me-1" onclick="editAsset(${item.id}, '${safeCode}', '${safeName}', '${safeCat}', '${safeDept}', '${safeStatus}', ${priceVal})">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteAsset(${item.id})">
