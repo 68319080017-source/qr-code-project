@@ -97,7 +97,7 @@
 
                     <div class="d-flex justify-content-end gap-2 mt-3">
                         <button type="button" onclick="closeModal()" class="btn btn-outline-secondary rounded-3 px-4">ยกเลิก</button>
-                        <button type="submit" class="btn btn-danger rounded-3 px-4 fw-semibold">ยืนยันเบิกออก</button>
+                        <button type="submit" id="btnSubmitReq" class="btn btn-danger rounded-3 px-4 fw-semibold">ยืนยันเบิกออก</button>
                     </div>
                 </form>
             </div>
@@ -109,74 +109,103 @@
 {% block extra_js %}
 <script>
     const API_URL = '/api/v1';
-    let reqModalInstance = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
+    // Helper ในการเรียกใช้ Instance ของ Bootstrap Modal
+    function getModalInstance() {
         const modalEl = document.getElementById('req-modal');
-        // ย้าย Modal ไปไว้ใต้อยู่ระดับ <body> เพื่อไม่ให้โดน parent container บีบ z-index
-        document.body.appendChild(modalEl);
-        reqModalInstance = new bootstrap.Modal(modalEl);
-        loadRequisitions();
-    });
+        if (!modalEl) return null;
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            return bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        }
+        return null;
+    }
 
-    async function loadRequisitions() {
+    // 1. ผูกฟังก์ชันเข้ากับ Global Window เพื่อให้ Event ใน HTML เรียกใช้ได้ไม่ผิดพลาด
+    window.openModal = function() {
+        loadAssetsForSelect();
+        const modal = getModalInstance();
+        if (modal) modal.show();
+    };
+
+    window.closeModal = function() {
+        const modal = getModalInstance();
+        if (modal) modal.hide();
+    };
+
+    // 2. ดึงรายการอุปกรณ์ที่พร้อมให้เบิก
+    window.loadAssetsForSelect = async function() {
+        const select = document.getElementById('asset_id');
+        if (!select) return;
+
         try {
-            const res = await fetch(`${API_URL}/requisitions/`);
-            if (!res.ok) throw new Error('Network error');
-            const data = await res.json();
-            const tbody = document.getElementById('requisition-table');
+            const res = await fetch(`${API_URL}/assets/`);
+            if (!res.ok) throw new Error(`HTTP Error status: ${res.status}`);
             
-            if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-secondary">ยังไม่มีประวัติการเบิกอุปกรณ์</td></tr>`;
+            const assets = await res.json();
+            const available = Array.isArray(assets) ? assets.filter(a => a.status !== 'ถูกเบิกออก') : [];
+            
+            if (available.length === 0) {
+                select.innerHTML = '<option value="">-- ไม่พบอุปกรณ์ที่สามารถเบิกได้ --</option>';
                 return;
             }
 
-            tbody.innerHTML = data.map(item => `
-                <tr class="border-bottom border-secondary border-opacity-10">
-                    <td class="p-3 text-secondary">${item.created_at ? new Date(item.created_at).toLocaleString('th-TH') : '-'}</td>
-                    <td class="p-3 font-monospace fw-bold text-danger">ID: ${item.asset_id}</td>
-                    <td class="p-3 fw-semibold text-white">${item.requester_name}</td>
-                    <td class="p-3 text-light">${item.department}</td>
-                    <td class="p-3 text-secondary">${item.purpose || '-'}</td>
-                    <td class="p-3"><span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">ถูกเบิกออก</span></td>
-                </tr>
-            `).join('');
-        } catch (err) {
-            console.error('Load Requisitions Error:', err);
-        }
-    }
-
-    async function loadAssetsForSelect() {
-        try {
-            const res = await fetch(`${API_URL}/assets/`);
-            const assets = await res.json();
-            const select = document.getElementById('asset_id');
-            
-            const available = assets.filter(a => a.status !== 'ถูกเบิกออก');
-            
             select.innerHTML = '<option value="">-- เลือกอุปกรณ์ --</option>' + 
                 available.map(a => `<option value="${a.id}">[${a.asset_code || a.id}] ${a.name}</option>`).join('');
         } catch (err) {
             console.error('Load Assets Error:', err);
+            select.innerHTML = '<option value="">-- ไม่สามารถโหลดรายการอุปกรณ์ได้ --</option>';
         }
-    }
+    };
 
-    function openModal() {
-        loadAssetsForSelect();
-        reqModalInstance.show();
-    }
+    // 3. ดึงประวัติรายการเบิก
+    window.loadRequisitions = async function() {
+        const tbody = document.getElementById('requisition-table');
+        if (!tbody) return;
 
-    function closeModal() {
-        reqModalInstance.hide();
-    }
+        try {
+            const res = await fetch(`${API_URL}/requisitions/`);
+            if (!res.ok) throw new Error(`HTTP Error status: ${res.status}`);
+            
+            const data = await res.json();
+            
+            if (!Array.isArray(data) || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-secondary">ยังไม่มีประวัติการเบิกอุปกรณ์</td></tr>`;
+                return;
+            }
 
-    async function submitRequisition(e) {
+            tbody.innerHTML = data.map(item => {
+                const dateStr = item.created_at ? new Date(item.created_at).toLocaleString('th-TH') : '-';
+                return `
+                    <tr class="border-bottom border-secondary border-opacity-10">
+                        <td class="p-3 text-secondary">${dateStr}</td>
+                        <td class="p-3 font-monospace fw-bold text-danger">ID: ${item.asset_id}</td>
+                        <td class="p-3 fw-semibold text-white">${item.requester_name || '-'}</td>
+                        <td class="p-3 text-light">${item.department || '-'}</td>
+                        <td class="p-3 text-secondary">${item.purpose || '-'}</td>
+                        <td class="p-3"><span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">ถูกเบิกออก</span></td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (err) {
+            console.error('Load Requisitions Error:', err);
+            tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูลประวัติการเบิก</td></tr>`;
+        }
+    };
+
+    // 4. ส่งฟอร์มเบิกอุปกรณ์
+    window.submitRequisition = async function(e) {
         e.preventDefault();
         
         const assetIdInput = document.getElementById('asset_id').value;
         if (!assetIdInput) {
             alert('กรุณาเลือกอุปกรณ์ก่อนทำรายการ');
             return;
+        }
+
+        const btnSubmit = document.getElementById('btnSubmitReq');
+        if (btnSubmit) {
+            btnSubmit.disabled = true;
+            btnSubmit.innerText = 'กำลังบันทึก...';
         }
 
         const payload = {
@@ -196,26 +225,36 @@
             if (res.ok) {
                 alert('บันทึกการเบิกเรียบร้อยแล้ว');
                 closeModal();
-                loadRequisitions();
                 document.getElementById('req-form').reset();
+                await loadRequisitions();
             } else {
-                // พยายามอ่านรายละเอียดข้อผิดพลาดจาก Backend JSON
                 const errData = await res.json().catch(() => ({ detail: 'ไม่สามารถอ่านข้อความตอบกลับได้' }));
-                console.error('Server Error:', errData);
-                
                 let errorMsg = 'เกิดข้อผิดพลาดในการทำรายการ';
                 if (typeof errData.detail === 'string') {
                     errorMsg = errData.detail;
                 } else if (typeof errData.detail === 'object') {
                     errorMsg = JSON.stringify(errData.detail);
                 }
-
                 alert(`เกิดข้อผิดพลาด (${res.status}): ${errorMsg}`);
             }
         } catch (err) {
             console.error('Fetch Error:', err);
             alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+        } finally {
+            if (btnSubmit) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = 'ยืนยันเบิกออก';
+            }
         }
-    }
+    };
+
+    // 5. เริ่มทำงานเมื่อ DOM พร้อมใช้งาน
+    document.addEventListener('DOMContentLoaded', () => {
+        const modalEl = document.getElementById('req-modal');
+        if (modalEl && modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+        loadRequisitions();
+    });
 </script>
 {% endblock %}

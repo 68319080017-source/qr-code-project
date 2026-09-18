@@ -38,9 +38,8 @@
         </table>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
+<!-- Modal เพิ่ม/แก้ไขครุภัณฑ์ -->
 <div class="modal fade" id="assetModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -101,22 +100,48 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-    // แก้จุดนี้: กำหนด Path ไปที่ REST API หลังบ้านที่ถูกต้อง
     const API_URL = '/api/v1/assets';
 
-    // โหลดข้อมูลเมื่อเปิดหน้าเว็บ
-    document.addEventListener('DOMContentLoaded', loadAssets);
+    // 1. ประกาศ Helper Functions ไว้ที่ window object เพื่อให้ HTML onclick เรียกใช้ได้เสมอ
+    window.escapeHtml = function(str) {
+        if (!str) return '';
+        return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    };
 
-    // ดึงข้อมูลจาก API มาแสดงในตาราง
-    async function loadAssets() {
+    window.resetForm = function() {
+        const form = document.getElementById('assetForm');
+        if (form) form.reset();
+        document.getElementById('assetId').value = '';
+        document.getElementById('assetImage').value = '';
+        document.getElementById('modalTitle').innerText = 'เพิ่มครุภัณฑ์ใหม่';
+        document.getElementById('assetCode').disabled = false;
+    };
+
+    window.closeModal = function() {
+        const modalEl = document.getElementById('assetModal');
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modalInstance.hide();
+        } else {
+            modalEl.classList.remove('show');
+            modalEl.style.display = 'none';
+        }
+    };
+
+    // 2. ฟังก์ชันดึงข้อมูลแบบมี Error Handling ป้องกันหน้าค้าง
+    window.loadAssets = async function() {
+        const tbody = document.getElementById('assetTableBody');
+        if (!tbody) return;
+
         try {
             const res = await fetch(API_URL);
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             
             const data = await res.json();
-            const tbody = document.getElementById('assetTableBody');
             tbody.innerHTML = '';
 
             if (!Array.isArray(data) || data.length === 0) {
@@ -124,6 +149,7 @@
                 return;
             }
 
+            let rowsHtml = '';
             data.forEach(item => {
                 let badgeClass = 'bg-success';
                 if (item.status === 'ถูกเบิกออก') badgeClass = 'bg-info text-dark';
@@ -131,13 +157,12 @@
                 if (item.status === 'ชำรุด/แทงจำหน่าย') badgeClass = 'bg-danger';
 
                 const priceVal = parseFloat(item.price) || 0;
-
                 const imgUrl = item.image_path || item.image_url;
                 const imgThumb = imgUrl 
                     ? `<img src="${imgUrl}" width="40" height="40" class="rounded border object-fit-cover shadow-sm" style="cursor:pointer;" onclick="window.open('${imgUrl}', '_blank')">`
                     : `<span class="text-muted"><i class="fa-solid fa-image text-secondary"></i></span>`;
 
-                tbody.innerHTML += `
+                rowsHtml += `
                     <tr>
                         <td>${imgThumb}</td>
                         <td class="fw-bold">${item.asset_code || '-'}</td>
@@ -160,29 +185,16 @@
                     </tr>
                 `;
             });
+            tbody.innerHTML = rowsHtml;
+
         } catch (err) {
             console.error('Error loading assets:', err);
-            document.getElementById('assetTableBody').innerHTML = `<tr><td colspan="9" class="text-center py-4 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูลจากเซิร์ฟเวอร์</td></tr>`;
         }
-    }
+    };
 
-    // Helper Function ป้องกัน Special Characters ใน HTML
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    }
-
-    // ล้างฟอร์ม Modal
-    function resetForm() {
-        document.getElementById('assetId').value = '';
-        document.getElementById('assetForm').reset();
-        document.getElementById('assetImage').value = '';
-        document.getElementById('modalTitle').innerText = 'เพิ่มครุภัณฑ์ใหม่';
-        document.getElementById('assetCode').disabled = false;
-    }
-
-    // เตรียมฟอร์มสำหรับแก้ไข
-    function editAsset(id, code, name, cat, dept, status, price) {
+    // 3. เตรียมฟอร์มสำหรับแก้ไข
+    window.editAsset = function(id, code, name, cat, dept, status, price) {
         document.getElementById('assetId').value = id;
         document.getElementById('assetCode').value = code;
         document.getElementById('assetCode').disabled = true;
@@ -196,95 +208,14 @@
         document.getElementById('modalTitle').innerText = 'แก้ไขข้อมูลครุภัณฑ์';
         
         const modalEl = document.getElementById('assetModal');
-        let modalInstance = bootstrap.Modal.getInstance(modalEl);
-        if (!modalInstance) {
-            modalInstance = new bootstrap.Modal(modalEl);
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            let modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modalInstance.show();
         }
-        modalInstance.show();
-    }
+    };
 
-    // ปิด Modal และลบ Backdrop ค้าง
-    function closeModal() {
-        const modalEl = document.getElementById('assetModal');
-        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-        if (modalInstance) {
-            modalInstance.hide();
-        }
-        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    }
-
-    // Submit ฟอร์ม (บันทึก / แก้ไข)
-    document.getElementById('assetForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const id = document.getElementById('assetId').value;
-        const payload = {
-            asset_code: document.getElementById('assetCode').value,
-            name: document.getElementById('assetName').value,
-            category: document.getElementById('assetCategory').value,
-            department: document.getElementById('assetDepartment').value,
-            status: document.getElementById('assetStatus').value,
-            price: parseFloat(document.getElementById('assetPrice').value) || 0
-        };
-
-        const method = id ? 'PUT' : 'POST';
-        const url = id ? `${API_URL}/${id}` : API_URL;
-
-        const btnSave = document.getElementById('btnSaveAsset');
-        btnSave.disabled = true;
-        btnSave.innerText = 'กำลังบันทึก...';
-
-        try {
-            const res = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                const savedAsset = await res.json();
-                const targetId = id || savedAsset.id;
-
-                // ถ้ามีการแนบไฟล์รูปภาพ ให้ส่งอัปโหลดไป Cloudinary
-                const imageFile = document.getElementById('assetImage').files[0];
-                if (imageFile && targetId) {
-                    btnSave.innerText = 'กำลังอัปโหลดรูปภาพ...';
-                    const formData = new FormData();
-                    formData.append('file', imageFile);
-
-                    await fetch(`${API_URL}/${targetId}/upload-image`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                }
-
-                closeModal();
-                resetForm();
-                await loadAssets();
-            } else {
-                const errorData = await res.json().catch(() => ({}));
-                let detail = 'ไม่สามารถบันทึกได้';
-                if (typeof errorData.detail === 'string') {
-                    detail = errorData.detail;
-                } else if (Array.isArray(errorData.detail)) {
-                    detail = errorData.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join('\n');
-                }
-                alert('เกิดข้อผิดพลาด: ' + detail);
-            }
-        } catch (err) {
-            console.error('Fetch error:', err);
-            alert('ไม่สามารถเชื่อมต่อ Server ได้ กรุณาตรวจสอบการรัน Service ของ Backend');
-        } finally {
-            btnSave.disabled = false;
-            btnSave.innerText = 'บันทึกข้อมูล';
-        }
-    });
-
-    // ลบครุภัณฑ์
-    async function deleteAsset(id) {
+    // 4. สั่งลบครุภัณฑ์
+    window.deleteAsset = async function(id) {
         if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?')) return;
         try {
             const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
@@ -297,6 +228,79 @@
             console.error('Delete error:', err);
             alert('เกิดข้อผิดพลาดในการสั่งลบ');
         }
-    }
+    };
+
+    // 5. บันทึกข้อมูล (Submit Event)
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAssets();
+
+        const form = document.getElementById('assetForm');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const id = document.getElementById('assetId').value;
+                const payload = {
+                    asset_code: document.getElementById('assetCode').value,
+                    name: document.getElementById('assetName').value,
+                    category: document.getElementById('assetCategory').value,
+                    department: document.getElementById('assetDepartment').value,
+                    status: document.getElementById('assetStatus').value,
+                    price: parseFloat(document.getElementById('assetPrice').value) || 0
+                };
+
+                const method = id ? 'PUT' : 'POST';
+                const url = id ? `${API_URL}/${id}` : API_URL;
+
+                const btnSave = document.getElementById('btnSaveAsset');
+                btnSave.disabled = true;
+                btnSave.innerText = 'กำลังบันทึก...';
+
+                try {
+                    const res = await fetch(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        const savedAsset = await res.json();
+                        const targetId = id || savedAsset.id;
+
+                        const imageFile = document.getElementById('assetImage').files[0];
+                        if (imageFile && targetId) {
+                            btnSave.innerText = 'กำลังอัปโหลดรูปภาพ...';
+                            const formData = new FormData();
+                            formData.append('file', imageFile);
+
+                            await fetch(`${API_URL}/${targetId}/upload-image`, {
+                                method: 'POST',
+                                body: formData
+                            });
+                        }
+
+                        closeModal();
+                        resetForm();
+                        await loadAssets();
+                    } else {
+                        const errorData = await res.json().catch(() => ({}));
+                        let detail = 'ไม่สามารถบันทึกได้';
+                        if (typeof errorData.detail === 'string') {
+                            detail = errorData.detail;
+                        } else if (Array.isArray(errorData.detail)) {
+                            detail = errorData.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join('\n');
+                        }
+                        alert('เกิดข้อผิดพลาด: ' + detail);
+                    }
+                } catch (err) {
+                    console.error('Fetch error:', err);
+                    alert('ไม่สามารถเชื่อมต่อ Server ได้');
+                } finally {
+                    btnSave.disabled = false;
+                    btnSave.innerText = 'บันทึกข้อมูล';
+                }
+            });
+        }
+    });
 </script>
 {% endblock %}
