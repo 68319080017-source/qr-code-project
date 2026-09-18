@@ -572,8 +572,6 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <script>
-        let isStarted = false;
-
         document.addEventListener('DOMContentLoaded', () => {
             if (typeof AOS !== 'undefined') AOS.init();
             initIntroMode();
@@ -641,12 +639,14 @@
 
         // --- GOLDEN STARDUST CURSOR PARTICLES ENGINE ---
         const canvas = document.getElementById('cursor-canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas ? canvas.getContext('2d') : null;
         let particles = [];
 
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            if (canvas) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
@@ -655,314 +655,214 @@
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                this.size = Math.random() * 1.3 + 0.5;
+                this.size = Math.random() * 1.5 + 0.5;
                 this.speedX = (Math.random() - 0.5) * 0.8;
                 this.speedY = (Math.random() - 0.5) * 0.8;
                 this.color = Math.random() > 0.3 ? '#FFE082' : '#C19A6B';
                 this.alpha = 0.8;
-                this.decay = Math.random() * 0.04 + 0.03; 
+                this.decay = Math.random() * 0.03 + 0.01;
             }
-
             update() {
                 this.x += this.speedX;
                 this.y += this.speedY;
                 this.alpha -= this.decay;
             }
-
             draw() {
+                if (!ctx) return;
                 ctx.save();
                 ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.shadowBlur = 4;
-                ctx.shadowColor = '#FFE082';
                 ctx.fill();
                 ctx.restore();
             }
         }
 
+        function animateParticles() {
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < particles.length; i++) {
+                    particles[i].update();
+                    particles[i].draw();
+                    if (particles[i].alpha <= 0) {
+                        particles.splice(i, 1);
+                        i--;
+                    }
+                }
+            }
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
         window.addEventListener('mousemove', (e) => {
             for (let i = 0; i < 2; i++) {
                 particles.push(new Particle(e.clientX, e.clientY));
             }
-        }, { passive: true });
+        });
 
-        function animateCursorParticles() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (let i = 0; i < particles.length; i++) {
-                particles[i].update();
-                particles[i].draw();
-                if (particles[i].alpha <= 0) {
-                    particles.splice(i, 1);
-                    i--;
-                }
-            }
-            requestAnimationFrame(animateCursorParticles);
-        }
-        animateCursorParticles();
-
-        // --- SOUND FX CONTROLLER ---
-        function playPSSound() {
-            if (localStorage.getItem('sound_fx_enabled') === 'false') return;
-
-            try {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                const ctx = new AudioCtx();
-
-                if (ctx.state === 'suspended') ctx.resume();
-
-                const bassOsc = ctx.createOscillator();
-                const bassGain = ctx.createGain();
-                bassOsc.type = 'sawtooth';
-                bassOsc.frequency.setValueAtTime(55, ctx.currentTime);
-                bassOsc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 2.8);
-
-                bassGain.gain.setValueAtTime(0.001, ctx.currentTime);
-                bassGain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 1.2);
-                bassGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 4.0);
-
-                const filter = ctx.createBiquadFilter();
-                filter.type = "lowpass";
-                filter.frequency.setValueAtTime(180, ctx.currentTime);
-                filter.frequency.linearRampToValueAtTime(650, ctx.currentTime + 2.5);
-
-                bassOsc.connect(filter);
-                filter.connect(bassGain);
-                bassGain.connect(ctx.destination);
-
-                bassOsc.start();
-                bassOsc.stop(ctx.currentTime + 4.0);
-
-            } catch (e) {
-                console.log('Audio Context Error: ', e);
-            }
-        }
-
-        // --- INTRO OVERLAY LOGIC ---
-        function runPlaystationExperience() {
-            if (isStarted) return;
-            isStarted = true;
-
-            const overlay = document.getElementById('ps2-intro-overlay');
-            const container = document.getElementById('ps2Container');
-            const controls = document.getElementById('ps2Controls');
-
-            if (controls) controls.style.display = 'none';
-            if (container) container.classList.add('ps2-animating');
-
-            playPSSound();
-
-            setTimeout(() => {
-                if (overlay) {
-                    overlay.classList.add('fade-out');
-                    setTimeout(() => {
-                        overlay.style.display = 'none';
-                        sessionStorage.setItem('intro_played', 'true');
-                        sessionStorage.removeItem('just_logged_in');
-                    }, 800);
-                }
-            }, 4000);
-        }
-
+        // --- INTRO OVERLAY CONTROLLER ---
         function initIntroMode() {
             const overlay = document.getElementById('ps2-intro-overlay');
-            const hasPlayed = sessionStorage.getItem('intro_played');
-            const justLoggedIn = sessionStorage.getItem('just_logged_in');
+            const btnStart = document.getElementById('btnStartIntro');
+            const btnToggle = document.getElementById('btnToggleMode');
 
-            if (justLoggedIn === 'true') {
-                document.documentElement.classList.remove('hide-intro-instantly');
-            } else if (hasPlayed === 'true') {
+            if (sessionStorage.getItem('intro_played') === 'true' && sessionStorage.getItem('just_logged_in') !== 'true') {
                 if (overlay) overlay.style.display = 'none';
                 return;
             }
 
-            const startBtn = document.getElementById('btnStartIntro');
-            const toggleBtn = document.getElementById('btnToggleMode');
-            const currentMode = localStorage.getItem('ps_intro_mode') || 'click';
-
-            if (currentMode === 'auto') {
-                if (toggleBtn) toggleBtn.innerText = 'สลับเป็นโหมด: กดปุ่มเพื่อเริ่มต้น (Manual Click)';
-                runPlaystationExperience();
-            } else {
-                if (toggleBtn) toggleBtn.innerText = 'สลับเป็นโหมด: เล่นอัตโนมัติทันที (Autoplay)';
-                if (overlay) overlay.addEventListener('click', runPlaystationExperience);
-                if (startBtn) startBtn.addEventListener('click', runPlaystationExperience);
+            if (btnStart) {
+                btnStart.addEventListener('click', () => startIntroAnimation());
             }
 
-            if (toggleBtn) {
-                toggleBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const newMode = currentMode === 'click' ? 'auto' : 'click';
-                    localStorage.setItem('ps_intro_mode', newMode);
-                    location.reload();
+            const isAutoplay = localStorage.getItem('intro_autoplay') === 'true';
+            if (btnToggle) {
+                btnToggle.textContent = isAutoplay 
+                    ? 'สลับเป็นโหมด: กดปุ่มเพื่อเริ่มต้น (Manual)' 
+                    : 'สลับเป็นโหมด: เล่นอัตโนมัติทันที (Autoplay)';
+                
+                btnToggle.addEventListener('click', () => {
+                    const currentSetting = localStorage.getItem('intro_autoplay') === 'true';
+                    const newSetting = !currentSetting;
+                    localStorage.setItem('intro_autoplay', newSetting);
+                    btnToggle.textContent = newSetting 
+                        ? 'สลับเป็นโหมด: กดปุ่มเพื่อเริ่มต้น (Manual)' 
+                        : 'สลับเป็นโหมด: เล่นอัตโนมัติทันที (Autoplay)';
                 });
+            }
+
+            if (isAutoplay) {
+                startIntroAnimation();
             }
         }
 
-        // --- 🎮 REAL-TIME RPG QUEST SYSTEM ENGINE ---
-        let activeQuestId = null;
-        let knownQuestIds = new Set();
-        let isFirstQuestLoad = true;
+        function startIntroAnimation() {
+            const overlay = document.getElementById('ps2-intro-overlay');
+            const container = document.getElementById('ps2Container');
+            if (!overlay) return;
 
-        function playRPGSound(type) {
-            if (localStorage.getItem('sound_fx_enabled') === 'false') return;
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                if (type === 'quest_new') {
-                    const notes = [523.25, 659.25, 783.99, 1046.50];
-                    notes.forEach((freq, idx) => {
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.type = 'triangle';
-                        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
-                        gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.12);
-                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.12 + 0.25);
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-                        osc.start(ctx.currentTime + idx * 0.12);
-                        osc.stop(ctx.currentTime + idx * 0.12 + 0.25);
-                    });
-                } else if (type === 'quest_accept') {
-                    const notes = [440, 554.37, 659.25, 880];
-                    notes.forEach((freq, idx) => {
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.type = 'sine';
-                        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
-                        gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.08);
-                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.3);
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-                        osc.start(ctx.currentTime + idx * 0.08);
-                        osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
-                    });
+            if (container) container.classList.add('ps2-animating');
+            setTimeout(() => {
+                overlay.classList.add('fade-out');
+                sessionStorage.setItem('intro_played', 'true');
+                sessionStorage.removeItem('just_logged_in');
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 800);
+            }, 1200);
+        }
+
+        // --- QR CODE SCANNER ENGINE ---
+        let html5QrcodeScanner = null;
+
+        function openQRScanner() {
+            const modalEl = document.getElementById('qrScannerModal');
+            if (!modalEl) return;
+            
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+
+            setTimeout(() => {
+                if (!html5QrcodeScanner) {
+                    html5QrcodeScanner = new Html5QrcodeScanner(
+                        "reader", 
+                        { fps: 10, qrbox: { width: 220, height: 220 } },
+                        false
+                    );
                 }
-            } catch (e) {}
+                html5QrcodeScanner.render(
+                    (decodedText) => {
+                        const resultEl = document.getElementById('scannerResult');
+                        if (resultEl) resultEl.innerText = `พบรหัส: ${decodedText}`;
+                        clearQRScanner();
+                        modal.hide();
+                        window.location.href = `/assets?search=${encodeURIComponent(decodedText)}`;
+                    },
+                    (errorMessage) => { /* Ignore scanning frame errors */ }
+                );
+            }, 300);
+        }
+
+        function clearQRScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.clear().catch(err => console.error("Scanner clear error:", err));
+                html5QrcodeScanner = null;
+            }
+        }
+
+        // --- RPG QUEST ENGINE ---
+        let activeQuestId = null;
+
+        function toggleQuestDropdown() {
+            const dropdown = document.getElementById('questDropdown');
+            if (dropdown) {
+                dropdown.style.display = (dropdown.style.display === 'none' || !dropdown.style.display) ? 'block' : 'none';
+            }
         }
 
         async function checkPendingQuests() {
             try {
-                const res = await fetch('/api/v1/maintenance/');
-                if (!res.ok) return;
-                const data = await res.json();
-
-                const pendingQuests = data.filter(i => i.status === 'Pending' || i.status === 'รอดำเนินการ');
-                updateQuestBadge(pendingQuests);
-
-                let hasNew = false;
-                let latestQuest = null;
-
-                pendingQuests.forEach(q => {
-                    if (!knownQuestIds.has(q.id)) {
-                        knownQuestIds.add(q.id);
-                        hasNew = true;
-                        latestQuest = q;
-                    }
-                });
-
-                if (!isFirstQuestLoad && hasNew && latestQuest) {
-                    playRPGSound('quest_new');
-                    triggerQuestModal(latestQuest);
-                }
-                isFirstQuestLoad = false;
-            } catch (err) {}
-        }
-
-        function updateQuestBadge(quests) {
-            const badge = document.getElementById('questBadge');
-            const pendingBadgeSidebar = document.getElementById('pendingBadge');
-            const headerCount = document.getElementById('questCountHeader');
-            const list = document.getElementById('questList');
-
-            if (quests.length > 0) {
+                const response = await fetch('/api/maintenance/pending-quests');
+                if (!response.ok) return;
+                
+                const quests = await response.json();
+                const badge = document.getElementById('questBadge');
+                const pendingBadge = document.getElementById('pendingBadge');
+                const countHeader = document.getElementById('questCountHeader');
+                const questList = document.getElementById('questList');
+                
+                const count = quests ? quests.length : 0;
+                
                 if (badge) {
-                    badge.innerText = quests.length;
-                    badge.style.display = 'inline-block';
+                    badge.textContent = count;
+                    badge.style.display = count > 0 ? 'inline-block' : 'none';
                 }
-                if (pendingBadgeSidebar) {
-                    pendingBadgeSidebar.innerText = quests.length;
-                    pendingBadgeSidebar.classList.remove('d-none');
+                if (pendingBadge) {
+                    pendingBadge.textContent = count;
+                    pendingBadge.classList.toggle('d-none', count === 0);
                 }
-                if (headerCount) headerCount.innerText = `${quests.length} เควส`;
-                if (list) {
-                    list.innerHTML = quests.map(q => `
-                        <div class="p-2 rounded bg-dark border border-secondary mb-2 d-flex justify-content-between align-items-center quest-item" style="font-size: 12px;">
-                            <div>
-                                <span class="fw-bold text-warning">#${q.asset_id}</span>
-                                <p class="mb-0 text-secondary text-truncate" style="max-width: 170px;">${q.issue_description || 'แจ้งซ่อม'}</p>
+                if (countHeader) countHeader.textContent = `${count} เควส`;
+
+                if (questList) {
+                    if (count === 0) {
+                        questList.innerHTML = '<p class="text-muted text-center py-3 mb-0" style="font-size: 12px;">ไม่มีเควสใหม่ในขณะนี้</p>';
+                    } else {
+                        questList.innerHTML = quests.map(q => `
+                            <div class="quest-item p-2.5 rounded-3 border border-secondary mb-2" style="background: rgba(255,255,255,0.05);">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold text-warning" style="font-size: 12px;">${q.asset_code || 'N/A'}</span>
+                                    <span class="badge ${q.urgency === 'ด่วนที่สุด' ? 'bg-danger' : 'bg-warning text-dark'}" style="font-size: 9px;">${q.urgency || 'ปกติ'}</span>
+                                </div>
+                                <p class="mb-1 text-white text-truncate" style="font-size: 11px;">${q.description || '-'}</p>
+                                <div class="d-flex justify-content-between text-muted" style="font-size: 10px;">
+                                    <span>โดย: ${q.reporter || '-'}</span>
+                                    <a href="/maintenance?id=${q.id}" class="text-warning text-decoration-none fw-bold">ดูรายละเอียด <i class="bi bi-arrow-right"></i></a>
+                                </div>
                             </div>
-                            <button onclick="triggerQuestModalById(${q.id})" class="btn btn-sm btn-outline-warning py-0 px-2" style="font-size: 11px;">⚔️ รับ</button>
-                        </div>
-                    `).join('');
+                        `).join('');
+                    }
                 }
-            } else {
-                if (badge) badge.style.display = 'none';
-                if (pendingBadgeSidebar) pendingBadgeSidebar.classList.add('d-none');
-                if (headerCount) headerCount.innerText = '0 เควส';
-                if (list) list.innerHTML = `<p class="text-muted text-center py-3 mb-0" style="font-size: 12px;">ไม่มีเควสใหม่ในขณะนี้</p>`;
+            } catch (error) {
+                console.error("Error fetching pending quests:", error);
             }
         }
 
-        function triggerQuestModal(q) {
-            activeQuestId = q.id;
-            document.getElementById('questAssetCode').innerText = `#${q.asset_id}`;
-            document.getElementById('questDescription').innerText = q.issue_description || 'ไม่มีรายละเอียด';
-            document.getElementById('questReporter').innerText = q.reporter_name || 'ไม่ระบุชื่อ';
-            document.getElementById('questTime').innerText = q.created_at ? new Date(q.created_at).toLocaleString('th-TH') : 'เมื่อครู่นี้';
-
-            const u = q.urgency || 'Normal';
-            let b = 'bg-info text-dark';
-            if (u === 'High') b = 'bg-warning text-dark';
-            if (u === 'Critical') b = 'bg-danger text-white';
-            document.getElementById('questUrgencyBadge').innerHTML = `<span class="badge ${b} px-2 py-1">${u}</span>`;
-
-            new bootstrap.Modal(document.getElementById('questModal')).show();
+        function acceptCurrentQuest() {
+            if (activeQuestId) {
+                window.location.href = `/maintenance/accept/${activeQuestId}`;
+            }
         }
 
-        async function triggerQuestModalById(id) {
-            try {
-                const res = await fetch('/api/v1/maintenance/');
-                if (!res.ok) return;
-                const data = await res.json();
-                const q = data.find(item => item.id === id);
-                if (q) triggerQuestModal(q);
-            } catch (e) {}
-        }
-
-        async function acceptCurrentQuest() {
-            if (!activeQuestId) return;
-            try {
-                const res = await fetch(`/api/v1/maintenance/${activeQuestId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: 'In Progress' })
-                });
-                if (res.ok) {
-                    playRPGSound('quest_accept');
-                    const m = bootstrap.Modal.getInstance(document.getElementById('questModal'));
-                    if (m) m.hide();
-                    
-                    if (typeof loadMaintenanceData === 'function') loadMaintenanceData();
-                    checkPendingQuests();
-                }
-            } catch (e) {}
-        }
-
-        function toggleQuestDropdown() {
-            const d = document.getElementById('questDropdown');
-            if (d) d.style.display = d.style.display === 'none' ? 'block' : 'none';
-        }
-
-        document.addEventListener('click', function(e) {
+        // ปิด Quest Dropdown เมื่อคลิกพื้นที่อื่นภายนอก
+        document.addEventListener('click', (e) => {
             const questBtn = document.getElementById('questBtn');
-            const questDropdown = document.getElementById('questDropdown');
-            if (questBtn && questDropdown && !questBtn.contains(e.target) && !questDropdown.contains(e.target)) {
-                questDropdown.style.display = 'none';
+            const dropdown = document.getElementById('questDropdown');
+            if (questBtn && dropdown && !questBtn.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
             }
         });
     </script>
-
     {% block extra_js %}{% endblock %}
 </body>
 </html>
