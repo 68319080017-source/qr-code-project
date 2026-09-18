@@ -6,6 +6,7 @@ import zoneinfo
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 
 import cloudinary
@@ -347,7 +348,7 @@ async def upload_asset_image(
 # 7. แก้ไขข้อมูลครุภัณฑ์ (รองรับ Form Data + Re-upload Image)
 @router.put("/{asset_id}", response_model=AssetResponse)
 async def update_asset(
-    asset_id: int,
+    asset_id: str,
     asset_code: Optional[str] = Form(None),
     name: Optional[str] = Form(None),
     category: Optional[str] = Form(None),
@@ -358,7 +359,13 @@ async def update_asset(
     file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    # ค้นหาด้วย ID ตัวเลข หรือ asset_code
+    asset = None
+    if str(asset_id).isdigit():
+        asset = db.query(Asset).filter(Asset.id == int(asset_id)).first()
+    if not asset:
+        asset = db.query(Asset).filter(Asset.asset_code == str(asset_id)).first()
+
     if not asset:
         raise HTTPException(status_code=404, detail="ไม่พบรายการครุภัณฑ์")
     
@@ -394,16 +401,33 @@ async def update_asset(
     return asset
 
 
-# 8. ลบข้อมูลครุภัณฑ์
-@router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_asset(asset_id: int, db: Session = Depends(get_db)):
-    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+# 8. ลบข้อมูลครุภัณฑ์ (รองรับทั้ง ID ตัวเลข และ asset_code พร้อมลบประวัติที่เกี่ยวข้อง)
+@router.delete("/{asset_id}")
+def delete_asset(asset_id: str, db: Session = Depends(get_db)):
+    asset = None
+    if str(asset_id).isdigit():
+        asset = db.query(Asset).filter(Asset.id == int(asset_id)).first()
+    if not asset:
+        asset = db.query(Asset).filter(Asset.asset_code == str(asset_id)).first()
+
     if not asset:
         raise HTTPException(status_code=404, detail="ไม่พบรายการครุภัณฑ์")
-    
-    db.delete(asset)
-    db.commit()
-    return None
+
+    try:
+        # ลบข้อมูลในตารางที่มี Foreign Key ผูกอยู่ออกก่อนเพื่อป้องกัน Error
+        db.query(MaintenanceModel).filter(MaintenanceModel.asset_id == asset.id).delete(synchronize_session=False)
+        db.query(RequisitionModel).filter(RequisitionModel.asset_id == asset.id).delete(synchronize_session=False)
+        
+        db.delete(asset)
+        db.commit()
+        return {"message": "ลบรายการครุภัณฑ์เรียบร้อยแล้ว"}
+    except Exception as e:
+        db.rollback()
+        print(f"[Delete Asset Error]: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"เกิดข้อผิดพลาดในการลบข้อมูล: {str(e)}"
+        )
 
 
 # 9. สร้างตั๋วแจ้งซ่อมด่วน (Ticket)
