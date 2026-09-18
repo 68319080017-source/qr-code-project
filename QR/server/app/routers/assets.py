@@ -32,7 +32,7 @@ cloudinary.config(
 )
 
 # =========================================================
-# PYDANTIC SCHEMAS (ผ่อนคลาย Field เพื่อป้องกัน Validation Error)
+# PYDANTIC SCHEMAS
 # =========================================================
 class AssetBase(BaseModel):
     asset_code: Optional[str] = "-"
@@ -239,42 +239,76 @@ def get_asset_timeline(asset_id: int, db: Session = Depends(get_db)):
     }
 
 
-# 5. เพิ่มครุภัณฑ์ใหม่
+# 5. เพิ่มครุภัณฑ์ใหม่ (แก้ไขให้รองรับ Form Data และอัปโหลดไฟล์รูปภาพ)
 @router.post("/", response_model=AssetResponse, status_code=status.HTTP_201_CREATED)
-def create_asset(asset_in: AssetCreate, db: Session = Depends(get_db)):
-    existing = db.query(Asset).filter(Asset.asset_code == asset_in.asset_code).first()
+async def create_asset(
+    asset_code: str = Form(...),
+    name: str = Form(...),
+    category: Optional[str] = Form(None),
+    department: Optional[str] = Form(None),
+    location: Optional[str] = Form(None),
+    asset_status: Optional[str] = Form("ใช้งานปกติ", alias="status"),
+    price: Optional[float] = Form(0.0),
+    file: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
+    existing = db.query(Asset).filter(Asset.asset_code == asset_code).first()
     if existing:
         raise HTTPException(status_code=400, detail="รหัสครุภัณฑ์นี้มีในระบบแล้ว")
     
     try:
-        qr_path = generate_qr_code(asset_in.asset_code)
+        # สร้าง QR Code
+        qr_path = generate_qr_code(asset_code)
         
-        asset_dict = asset_in.model_dump() if hasattr(asset_in, "model_dump") else asset_in.dict()
-        asset_dict["qr_code_path"] = qr_path
-        
-        raw_location = asset_dict.pop("location", None)
-        asset_dict.pop("image_path", None)
-        
-        valid_columns = {c.name for c in Asset.__table__.columns}
-        filtered_data = {k: v for k, v in asset_dict.items() if k in valid_columns}
+        # อัปโหลดรูปภาพไปยัง Cloudinary (ถ้ามีส่งไฟล์มา)
+        image_url = None
+        if file and file.filename:
+            try:
+                result = cloudinary.uploader.upload(file.file, folder="asset_photos")
+                image_url = result.get("secure_url")
+            except Exception as upload_err:
+                print(f"[Cloudinary Upload Error]: {upload_err}")
 
-        if raw_location:
+        valid_columns = {c.name for c in Asset.__table__.columns}
+        
+        asset_dict = {
+            "asset_code": asset_code,
+            "name": name,
+            "category": category,
+            "department": department,
+            "status": asset_status,
+            "price": price,
+            "qr_code_path": qr_path
+        }
+
+        if location:
             if "location" in valid_columns:
-                filtered_data["location"] = raw_location
-            elif "building" in valid_columns and not filtered_data.get("building"):
-                filtered_data["building"] = raw_location
+                asset_dict["location"] = location
+            elif "building" in valid_columns:
+                asset_dict["building"] = location
+
+        if image_url:
+            if "image_path" in valid_columns:
+                asset_dict["image_path"] = image_url
+            if "image_url" in valid_columns:
+                asset_dict["image_url"] = image_url
+            if "image" in valid_columns:
+                asset_dict["image"] = image_url
+
+        filtered_data = {k: v for k, v in asset_dict.items() if k in valid_columns}
 
         new_asset = Asset(**filtered_data)
         db.add(new_asset)
         db.commit()
         db.refresh(new_asset)
         
-        setattr(new_asset, "location", raw_location or getattr(new_asset, "building", None))
-        setattr(new_asset, "image_path", None)
+        setattr(new_asset, "location", location or getattr(new_asset, "building", None))
+        setattr(new_asset, "image_path", image_url)
         return new_asset
 
     except Exception as e:
         db.rollback()
+        print(f"[Create Asset Error]: {e}")
         raise HTTPException(
             status_code=500, 
             detail=f"Database Server Error: {str(e)}"
