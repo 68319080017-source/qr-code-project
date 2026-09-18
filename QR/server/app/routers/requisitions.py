@@ -1,5 +1,6 @@
 from typing import Any, List
 from datetime import datetime
+import zoneinfo
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -10,6 +11,9 @@ from app.models.requisition import Requisition
 from app.schemas.requisition import RequisitionCreate, RequisitionResponse
 
 router = APIRouter()
+
+THAI_TZ = zoneinfo.ZoneInfo("Asia/Bangkok")
+
 
 # =========================================================
 # 1. API ดึงรายการการเบิกอุปกรณ์ทั้งหมด
@@ -36,11 +40,17 @@ def create_requisition(req_in: RequisitionCreate, db: Session = Depends(get_db))
     asset = db.execute(stmt).scalar_one_or_none()
     
     if not asset:
-        raise HTTPException(status_code=404, detail="ไม่พบข้อมูลครุภัณฑ์ในระบบ")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="ไม่พบข้อมูลครุภัณฑ์ในระบบ"
+        )
 
     # 2. ตรวจสอบสถานะว่าถูกเบิกไปแล้วหรือยัง
     if asset.status == "ถูกเบิกออก":
-        raise HTTPException(status_code=400, detail="ครุภัณฑ์นี้ถูกเบิกออกไปแล้ว")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="ครุภัณฑ์นี้ถูกเบิกออกไปแล้ว"
+        )
 
     try:
         # 3. เปลี่ยนสถานะ Asset
@@ -52,7 +62,7 @@ def create_requisition(req_in: RequisitionCreate, db: Session = Depends(get_db))
             requester_name=req_in.requester_name,
             department=req_in.department,
             purpose=req_in.purpose or "เบิกใช้งานทั่วไป",
-            created_at=datetime.now() # ใส่วันที่ปัจจุบันป้องกัน created_at เป็น None
+            created_at=datetime.now(THAI_TZ)
         )
         
         db.add(req_obj)
@@ -62,8 +72,8 @@ def create_requisition(req_in: RequisitionCreate, db: Session = Depends(get_db))
 
     except Exception as e:
         db.rollback() # ย้อนกลับ Transaction ถ้ามีปัญหา
-        print(f"Database/Post Error: {str(e)}") # แสดงข้อมูล Error ใน Terminal
+        print(f"[Create Requisition Error]: {str(e)}")
         raise HTTPException(
-            status_code=500, 
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail=f"เกิดข้อผิดพลาดในการบันทึกข้อมูล: {str(e)}"
         )

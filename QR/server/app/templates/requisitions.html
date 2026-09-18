@@ -24,7 +24,8 @@
     <div>
         <p class="text-secondary mb-0">บันทึกการเบิกวัสดุสิ้นเปลือง / ครุภัณฑ์ ออกจากระบบ</p>
     </div>
-    <button id="btn-open-modal" class="btn btn-danger px-4 py-2 rounded-3 fw-bold d-flex align-items-center gap-2 shadow-sm">
+    <!-- เพิ่ม Attribute สั่งเปิด Modal ของ Bootstrap ตรงนี้ -->
+    <button id="btn-open-modal" data-bs-toggle="modal" data-bs-target="#req-modal" data-toggle="modal" data-target="#req-modal" class="btn btn-danger px-4 py-2 rounded-3 fw-bold d-flex align-items-center gap-2 shadow-sm">
         <i class="bi bi-plus-lg"></i> บันทึกเบิกของ
     </button>
 </div>
@@ -60,7 +61,7 @@
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
                     <i class="bi bi-box-arrow-right text-danger"></i> ฟอร์มเบิกอุปกรณ์
                 </h5>
-                <button type="button" class="btn-close btn-close-white" id="btn-close-modal-x"></button>
+                <button type="button" class="btn-close btn-close-white" id="btn-close-modal-x" data-bs-dismiss="modal" data-dismiss="modal"></button>
             </div>
             <div class="modal-body pt-3">
                 <form id="req-form" class="d-flex flex-column gap-3">
@@ -87,7 +88,7 @@
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 mt-3">
-                        <button type="button" id="btn-close-modal" class="btn btn-outline-secondary rounded-3 px-4">ยกเลิก</button>
+                        <button type="button" id="btn-close-modal" class="btn btn-outline-secondary rounded-3 px-4" data-bs-dismiss="modal" data-dismiss="modal">ยกเลิก</button>
                         <button type="submit" id="btn-submit" class="btn btn-danger rounded-3 px-4 fw-semibold">ยืนยันเบิกออก</button>
                     </div>
                 </form>
@@ -101,15 +102,10 @@
 <script>
 (function () {
     const API_URL = '/api/v1';
-    let modalInstance = null;
 
-    function getModal() {
-        const el = document.getElementById('req-modal');
-        if (!el) return null;
-        if (!modalInstance && typeof bootstrap !== 'undefined') {
-            modalInstance = new bootstrap.Modal(el);
-        }
-        return modalInstance;
+    function closeModalFunc() {
+        const closeBtn = document.getElementById('btn-close-modal-x');
+        if (closeBtn) closeBtn.click();
     }
 
     async function loadRequisitions() {
@@ -167,23 +163,13 @@
     document.addEventListener('DOMContentLoaded', () => {
         loadRequisitions();
 
-        // ผูก Event ผ่าน ID แทนการเขียน onclick ใน HTML
+        // เมื่อกดปุ่มเบิกของ ให้ดึงข้อมูลรายการอุปกรณ์มาใส่ Dropdown
         const btnOpen = document.getElementById('btn-open-modal');
         if (btnOpen) {
             btnOpen.addEventListener('click', () => {
                 loadAssetsForSelect();
-                const m = getModal();
-                if (m) m.show();
             });
         }
-
-        const closeModalFunc = () => {
-            const m = getModal();
-            if (m) m.hide();
-        };
-
-        document.getElementById('btn-close-modal')?.addEventListener('click', closeModalFunc);
-        document.getElementById('btn-close-modal-x')?.addEventListener('click', closeModalFunc);
 
         const form = document.getElementById('req-form');
         if (form) {
