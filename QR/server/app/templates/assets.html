@@ -137,7 +137,6 @@
     let rawAssetsData = [];
 
     document.addEventListener('DOMContentLoaded', () => {
-        // ดึงค่าคำค้นหาจาก URL ถ้ามาจากการสแกน QR Code (เช่น ?search=0001)
         const urlParams = new URLSearchParams(window.location.search);
         const searchQuery = urlParams.get('search');
         if (searchQuery) {
@@ -157,8 +156,6 @@
                 throw new Error(`HTTP Error! Status: ${response.status}`);
             }
             rawAssetsData = await response.json();
-            
-            // กรองข้อมูลและแสดงผล
             filterAssets();
         } catch (error) {
             console.error('Error fetching assets:', error);
@@ -197,20 +194,14 @@
 
         let html = '';
         data.forEach(item => {
-            // เลือกสี Badge ตามสถานะ
             let badgeClass = 'bg-secondary';
             const status = item.status || '-';
             if (status.includes('ปกติ') || status.includes('ใช้งานได้')) badgeClass = 'bg-success bg-opacity-75';
             else if (status.includes('ส่งซ่อม') || status.includes('แจ้งซ่อม')) badgeClass = 'bg-warning text-dark';
             else if (status.includes('เบิก') || status.includes('ชำรุด')) badgeClass = 'bg-danger';
 
-            // รูปภาพสำรอง
             const imgSrc = item.image_path ? item.image_path : '/static/img/logo.png';
-
-            // รูปแบบตัวเลขราคา
             const priceFormatted = item.price ? Number(item.price).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
-
-            // เส้นทาง QR Code
             const qrPath = item.qr_code_path ? item.qr_code_path : '#';
 
             html += `
@@ -260,23 +251,27 @@
         renderAssetsTable(filtered);
     }
 
-    // เปิด Modal เพิ่มครุภัณฑ์ (เพิ่มคำสั่งแก้ปัญหาฉากหลังบังแล้ว)
+    // เปิด Modal เพิ่มครุภัณฑ์
     function openAddAssetModal() {
         const el = document.getElementById('addAssetModal');
         if (el && typeof bootstrap !== 'undefined') {
-            // **คำสั่งนี้ถูกเพิ่มเข้ามา เพื่อย้าย Modal ออกจาก z-index เดิม**
             document.body.appendChild(el);
-            
             const modal = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
             modal.show();
         }
     }
 
-    // ยิง API บันทึกข้อมูลครุภัณฑ์ใหม่
+    // ยิง API บันทึกข้อมูลครุภัณฑ์ใหม่ (ปรับปรุงการอ่าน Error Message)
     async function submitAddAsset(event) {
         event.preventDefault();
         const form = document.getElementById('addAssetForm');
         const formData = new FormData(form);
+
+        // ตรวจสอบฟิลด์ราคาไม่ให้ส่งค่าว่างเปล่าเป็น String
+        const priceVal = formData.get('price');
+        if (!priceVal) {
+            formData.set('price', '0.00');
+        }
 
         const btnSave = document.getElementById('btnSaveAsset');
         const spinner = document.getElementById('saveSpinner');
@@ -291,24 +286,33 @@
             });
 
             if (!response.ok) {
-                throw new Error('ไม่สามารถบันทึกข้อมูลได้');
+                const errorData = await response.json().catch(() => null);
+                let detailMsg = `HTTP Status: ${response.status}`;
+                
+                if (errorData) {
+                    if (Array.isArray(errorData.detail)) {
+                        detailMsg = errorData.detail.map(e => `${e.loc ? e.loc.join('.') : ''}: ${e.msg}`).join('\n');
+                    } else if (typeof errorData.detail === 'string') {
+                        detailMsg = errorData.detail;
+                    } else {
+                        detailMsg = JSON.stringify(errorData);
+                    }
+                }
+                throw new Error(detailMsg);
             }
 
             alert('เพิ่มครุภัณฑ์เรียบร้อยแล้ว!');
             
-            // ปิด Modal และรีเซ็ตฟอร์ม
             const el = document.getElementById('addAssetModal');
             const modal = bootstrap.Modal.getInstance(el);
             if (modal) modal.hide();
             
             form.reset();
-            
-            // ดึงข้อมูลใหม่
             fetchAssetsData();
 
         } catch (err) {
-            console.error(err);
-            alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            console.error('Submit Asset Error:', err);
+            alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล:\n' + err.message);
         } finally {
             btnSave.disabled = false;
             spinner.classList.add('d-none');
