@@ -31,7 +31,7 @@
             <div class="col-md-4 col-lg-4">
                 <select id="statusFilter" class="form-select bg-dark border-secondary text-white" onchange="filterAssets()">
                     <option value="">-- สถานะทั้งหมด --</option>
-                    <option value="ใช้งานได้">ใช้งานได้ / ใช้งานปกติ</option>
+                    <option value="ใช้งานปกติ">ใช้งานปกติ / ใช้งานได้</option>
                     <option value="ส่งซ่อม">ส่งซ่อม</option>
                     <option value="ถูกเบิกออก">ถูกเบิกออก</option>
                 </select>
@@ -56,12 +56,13 @@
                         <th class="py-3">สถานที่</th>
                         <th class="text-center py-3">สถานะ</th>
                         <th class="text-end py-3">ราคา (บาท)</th>
-                        <th class="text-center py-3" style="width: 90px;">QR Code</th>
+                        <th class="text-center py-3" style="width: 80px;">QR Code</th>
+                        <th class="text-center py-3" style="width: 110px;">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody id="assetsTableBody">
                     <tr>
-                        <td colspan="9" class="text-center py-5 text-muted">
+                        <td colspan="10" class="text-center py-5 text-muted">
                             <div class="spinner-border spinner-border-sm text-warning me-2" role="status"></div>
                             กำลังโหลดข้อมูล...
                         </td>
@@ -133,6 +134,64 @@
     </div>
 </div>
 
+<!-- Modal แก้ไขครุภัณฑ์ -->
+<div class="modal fade" id="editAssetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content text-white" style="background: var(--bg-card, #1e293b); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 20px;">
+            <div class="modal-header border-bottom border-secondary">
+                <h5 class="modal-title fw-bold text-info"><i class="bi bi-pencil-square me-2"></i>แก้ไขรายการครุภัณฑ์</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editAssetForm" onsubmit="submitEditAsset(event)">
+                <input type="hidden" id="edit_asset_id" name="id">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">รหัสครุภัณฑ์ *</label>
+                            <input type="text" id="edit_asset_code" name="asset_code" class="form-control bg-dark border-secondary text-white" required readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">ชื่อรายการ *</label>
+                            <input type="text" id="edit_name" name="name" class="form-control bg-dark border-secondary text-white" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">หมวดหมู่</label>
+                            <input type="text" id="edit_category" name="category" class="form-control bg-dark border-secondary text-white">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">แผนก / หน่วยงาน</label>
+                            <input type="text" id="edit_department" name="department" class="form-control bg-dark border-secondary text-white">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">สถานที่จัดเก็บ</label>
+                            <input type="text" id="edit_location" name="location" class="form-control bg-dark border-secondary text-white">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">สถานะ</label>
+                            <select id="edit_status" name="status" class="form-select bg-dark border-secondary text-white">
+                                <option value="ใช้งานปกติ">ใช้งานปกติ / ใช้งานได้</option>
+                                <option value="ส่งซ่อม">ส่งซ่อม</option>
+                                <option value="ถูกเบิกออก">ถูกเบิกออก</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">ราคา (บาท)</label>
+                            <input type="number" step="0.01" id="edit_price" name="price" class="form-control bg-dark border-secondary text-white">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary p-3">
+                    <button type="button" class="btn btn-outline-secondary rounded-3" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" id="btnUpdateAsset" class="btn btn-info rounded-3 fw-semibold px-4 text-white">
+                        <span id="updateSpinner" class="spinner-border spinner-border-sm me-1 d-none" role="status"></span>
+                        อัปเดตข้อมูล
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     let rawAssetsData = [];
 
@@ -162,7 +221,7 @@
             if (tbody) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="9" class="text-center py-5 text-danger">
+                        <td colspan="10" class="text-center py-5 text-danger">
                             <i class="bi bi-exclamation-triangle-fill fs-3 d-block mb-2"></i>
                             เกิดข้อผิดพลาดในการเชื่อมต่อข้อมูลครุภัณฑ์
                         </td>
@@ -183,7 +242,7 @@
         if (!data || data.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="9" class="text-center py-5 text-muted">
+                    <td colspan="10" class="text-center py-5 text-muted">
                         <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                         ไม่พบรายการครุภัณฑ์ที่ตรงตามเงื่อนไข
                     </td>
@@ -203,6 +262,7 @@
             const imgSrc = item.image_path ? item.image_path : '/static/img/logo.png';
             const priceFormatted = item.price ? Number(item.price).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
             const qrPath = item.qr_code_path ? item.qr_code_path : '#';
+            const idVal = item.id || item.asset_code;
 
             html += `
                 <tr>
@@ -222,6 +282,16 @@
                                 <i class="bi bi-qr-code"></i>
                             </a>
                         ` : '-'}
+                    </td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-info rounded-2 me-1" onclick="openEditAssetModal('${idVal}')" title="แก้ไข">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger rounded-2" onclick="deleteAsset('${idVal}')" title="ลบ">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -261,6 +331,86 @@
         }
     }
 
+    // เปิด Modal แก้ไขครุภัณฑ์
+    function openEditAssetModal(id) {
+        const item = rawAssetsData.find(a => (a.id == id || a.asset_code == id));
+        if (!item) return;
+
+        document.getElementById('edit_asset_id').value = item.id || item.asset_code;
+        document.getElementById('edit_asset_code').value = item.asset_code || '';
+        document.getElementById('edit_name').value = item.name || '';
+        document.getElementById('edit_category').value = item.category || '';
+        document.getElementById('edit_department').value = item.department || '';
+        document.getElementById('edit_location').value = item.location || '';
+        document.getElementById('edit_status').value = item.status || 'ใช้งานปกติ';
+        document.getElementById('edit_price').value = item.price || 0;
+
+        const el = document.getElementById('editAssetModal');
+        if (el && typeof bootstrap !== 'undefined') {
+            document.body.appendChild(el);
+            const modal = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
+            modal.show();
+        }
+    }
+
+    // บันทึกการแก้ไขครุภัณฑ์
+    async function submitEditAsset(event) {
+        event.preventDefault();
+        const id = document.getElementById('edit_asset_id').value;
+        const form = document.getElementById('editAssetForm');
+        const formData = new FormData(form);
+
+        const btnUpdate = document.getElementById('btnUpdateAsset');
+        const spinner = document.getElementById('updateSpinner');
+        btnUpdate.disabled = true;
+        spinner.classList.remove('d-none');
+
+        try {
+            const response = await fetch(`/api/v1/assets/${id}`, {
+                method: 'PUT',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP Error Status: ${response.status}`);
+            }
+
+            alert('แก้ไขข้อมูลครุภัณฑ์เรียบร้อยแล้ว!');
+            const el = document.getElementById('editAssetModal');
+            const modal = bootstrap.Modal.getInstance(el);
+            if (modal) modal.hide();
+
+            fetchAssetsData();
+        } catch (err) {
+            console.error('Update Asset Error:', err);
+            alert('เกิดข้อผิดพลาดในการอัปเดตข้อมูล: ' + err.message);
+        } finally {
+            btnUpdate.disabled = false;
+            spinner.classList.add('d-none');
+        }
+    }
+
+    // ลบครุภัณฑ์
+    async function deleteAsset(id) {
+        if (!confirm(`คุณต้องการลบรายการครุภัณฑ์นี้ใช่หรือไม่?`)) return;
+
+        try {
+            const response = await fetch(`/api/v1/assets/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP Error Status: ${response.status}`);
+            }
+
+            alert('ลบรายการครุภัณฑ์เรียบร้อยแล้ว!');
+            fetchAssetsData();
+        } catch (err) {
+            console.error('Delete Asset Error:', err);
+            alert('เกิดข้อผิดพลาดในการลบข้อมูล: ' + err.message);
+        }
+    }
+
     // ยิง API บันทึกข้อมูลครุภัณฑ์ใหม่
     async function submitAddAsset(event) {
         event.preventDefault();
@@ -268,9 +418,7 @@
         const formData = new FormData(form);
 
         const priceVal = formData.get('price');
-        if (!priceVal) {
-            formData.set('price', '0.00');
-        }
+        if (!priceVal) formData.set('price', '0.00');
 
         const btnSave = document.getElementById('btnSaveAsset');
         const spinner = document.getElementById('saveSpinner');
@@ -287,21 +435,11 @@
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
                 let detailMsg = `HTTP Status: ${response.status}`;
-                
-                if (errorData) {
-                    if (Array.isArray(errorData.detail)) {
-                        detailMsg = errorData.detail.map(e => `${e.loc ? e.loc.join('.') : ''}: ${e.msg}`).join('\n');
-                    } else if (typeof errorData.detail === 'string') {
-                        detailMsg = errorData.detail;
-                    } else {
-                        detailMsg = JSON.stringify(errorData);
-                    }
-                }
+                if (errorData && errorData.detail) detailMsg = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
                 throw new Error(detailMsg);
             }
 
             alert('เพิ่มครุภัณฑ์เรียบร้อยแล้ว!');
-            
             const el = document.getElementById('addAssetModal');
             const modal = bootstrap.Modal.getInstance(el);
             if (modal) modal.hide();
