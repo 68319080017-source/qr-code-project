@@ -99,10 +99,18 @@
             <h5 class="fw-bold mb-1 text-white"><i class="bi bi-wrench-adjustable me-2 text-warning"></i>รายการแจ้งซ่อม / ภารกิจเควสทั้งหมด</h5>
             <p class="text-secondary small mb-0">ติดตาม รับเควส และจัดการสถานะการซ่อมแซมครุภัณฑ์แบบ Real-time</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <!-- 🗑️ ปุ่ม Recycle Bin (สไตล์ PC) -->
+            <button class="btn btn-outline-danger position-relative rounded-3 px-3 py-2 d-flex align-items-center gap-2 shadow-sm" onclick="openTrashModal()" title="ถังขยะ / รายการที่ลบ">
+                <i class="bi bi-trash3-fill fs-6"></i>
+                <span class="d-none d-sm-inline small fw-semibold">ถังขยะ</span>
+                <span id="trashCountBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-danger border border-dark" style="display: none; font-size: 10px;">0</span>
+            </button>
+
+            <!-- ช่องค้นหา -->
             <div class="input-group style-search">
                 <span class="input-group-text border-0 text-secondary" style="background: rgba(255,255,255,0.05); border-radius: 12px 0 0 12px;"><i class="bi bi-search"></i></span>
-                <input type="text" id="searchInput" class="form-control border-0 text-light px-3" placeholder="ค้นหาอาการ / ผู้แจ้ง / รหัส..." style="background: rgba(255,255,255,0.05); border-radius: 0 12px 12px 0; max-width: 260px;">
+                <input type="text" id="searchInput" class="form-control border-0 text-light px-3" placeholder="ค้นหาอาการ / ผู้แจ้ง / รหัส..." style="background: rgba(255,255,255,0.05); border-radius: 0 12px 12px 0; max-width: 240px;">
             </div>
         </div>
     </div>
@@ -128,13 +136,48 @@
     </div>
 </div>
 
+<!-- 🗑️ MODAL RECYCLE BIN (หน้าต่างถังขยะ) -->
+<div class="modal fade" id="trashModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content text-light" style="background: #0d1424; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 1.25rem; backdrop-filter: blur(20px); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+            <div class="modal-header border-bottom border-secondary border-opacity-25 p-3">
+                <h5 class="modal-title fw-bold text-danger d-flex align-items-center gap-2 mb-0">
+                    <i class="bi bi-trash3-fill"></i> Recycle Bin (ประวัติรายการที่ถูกลบ)
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0 text-light" style="border-color: rgba(255,255,255,0.05); font-size: 0.9rem;">
+                        <thead>
+                            <tr class="text-secondary small bg-dark bg-opacity-50">
+                                <th class="ps-3 py-2.5">รหัสครุภัณฑ์</th>
+                                <th class="py-2.5">อาการชำรุด</th>
+                                <th class="py-2.5">ผู้แจ้ง</th>
+                                <th class="py-2.5">วันที่แจ้ง</th>
+                                <th class="py-2.5 text-end pe-3">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trashTableBody">
+                            <!-- Items loaded via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-top border-secondary border-opacity-25 p-2">
+                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-4" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
 let rawMaintenanceData = [];
 
-// ระบบเสียงเอฟเฟกต์ RPG สำหรับการรับเควสและส่งเควส
+// ระบบเสียงเอฟเฟกต์ RPG
 function playRPGSound(type) {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -185,6 +228,7 @@ async function loadMaintenanceData() {
         document.getElementById('countCompleted').innerText = rawMaintenanceData.filter(i => i.status === 'Completed' || i.status === 'ซ่อมเสร็จแล้ว').length;
 
         renderTable(rawMaintenanceData);
+        updateTrashBadge();
     } catch (err) {
         console.error("Error loading maintenance data:", err);
     }
@@ -205,7 +249,6 @@ function renderTable(data) {
             hour: '2-digit', minute: '2-digit'
         }) : '-';
 
-        // ปรับแต่ง Badge สถานะเควส
         let statusBadge = '';
         let actionButtons = '';
 
@@ -237,7 +280,12 @@ function renderTable(data) {
                 </button>`;
         }
 
-        // ความเร่งด่วน
+        // ปุ่มย้ายลงถังขยะ (Soft Delete)
+        const deleteBtn = `
+            <button class="btn btn-sm btn-outline-danger rounded-circle ms-1 p-1" style="width: 31px; height: 31px;" title="ย้ายลงถังขยะ" onclick="softDeleteQuest(${item.id}, '${item.asset_id}')">
+                <i class="bi bi-trash-fill"></i>
+            </button>`;
+
         const urgency = item.urgency || 'Normal';
         let urgencyBadgeClass = 'bg-secondary bg-opacity-25 text-light';
         if (urgency === 'High') urgencyBadgeClass = 'bg-warning bg-opacity-25 text-warning border border-warning';
@@ -252,13 +300,160 @@ function renderTable(data) {
             <td><span class="badge ${urgencyBadgeClass} px-2.5 py-1 rounded-3">${urgency}</span></td>
             <td>${statusBadge}</td>
             <td class="text-secondary small">${dateStr}</td>
-            <td class="text-end">${actionButtons}</td>
+            <td class="text-end">
+                <div class="d-inline-flex align-items-center justify-content-end gap-1">
+                    ${actionButtons}
+                    ${deleteBtn}
+                </div>
+            </td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-// ⚔️ ฟังก์ชันรับเควส (Pending -> In Progress)
+// 🗑️ ฟังก์ชันย้ายลงถังขยะ (Soft Delete)
+function softDeleteQuest(id, assetId) {
+    Swal.fire({
+        title: '🗑️ ย้ายลงถังขยะ?',
+        text: `ต้องการย้ายรายการ #${assetId} ไปไว้ใน Recycle Bin ใช่หรือไม่?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#475569',
+        confirmButtonText: 'ย้ายลงถังขยะ',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'swal-dark' }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch(`/api/v1/maintenance/${id}/soft-delete`, { method: 'PUT' });
+                if (res.ok) {
+                    Swal.fire({
+                        title: 'ย้ายลงถังขยะเรียบร้อย!',
+                        icon: 'success',
+                        timer: 1200,
+                        showConfirmButton: false,
+                        customClass: { popup: 'swal-dark' }
+                    });
+                    loadMaintenanceData();
+                } else {
+                    Swal.fire({ title: 'ข้อผิดพลาด!', text: 'ไม่สามารถลบรายการได้', icon: 'error', customClass: { popup: 'swal-dark' } });
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    });
+}
+
+// 🔄 อัปเดตตัวเลข Badge บนไอคอนถังขยะ
+async function updateTrashBadge() {
+    try {
+        const res = await fetch('/api/v1/maintenance/trash-list');
+        if (res.ok) {
+            const items = await res.json();
+            const badge = document.getElementById('trashCountBadge');
+            if (badge) {
+                badge.textContent = items.length;
+                badge.style.display = items.length > 0 ? 'inline-block' : 'none';
+            }
+        }
+    } catch (e) {
+        console.error("Error updating trash badge:", e);
+    }
+}
+
+// 📂 เปิด Modal ถังขยะ
+async function openTrashModal() {
+    const modalEl = document.getElementById('trashModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    const tbody = document.getElementById('trashTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-secondary"><i class="bi bi-arrow-repeat spin me-2"></i>กำลังโหลดรายการขยะ...</td></tr>';
+
+    try {
+        const res = await fetch('/api/v1/maintenance/trash-list');
+        const items = await res.json();
+
+        if (items.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-5 text-secondary">
+                        <i class="bi bi-trash3 fs-1 opacity-25 d-block mb-2"></i>
+                        ไม่มีรายการในถังขยะ
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        let html = '';
+        items.forEach(item => {
+            const dateStr = item.created_at ? new Date(item.created_at).toLocaleDateString('th-TH') : '-';
+            html += `
+                <tr>
+                    <td class="ps-3 fw-bold text-warning">#${item.asset_id}</td>
+                    <td class="text-light">${item.issue_description || '-'}</td>
+                    <td class="text-secondary">${item.reporter_name || 'ไม่ระบุ'}</td>
+                    <td class="text-secondary small">${dateStr}</td>
+                    <td class="text-end pe-3">
+                        <button class="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1 me-1" title="กู้คืนรายการ" onclick="restoreQuest(${item.id}, '${item.asset_id}')">
+                            <i class="bi bi-arrow-counterclockwise"></i> กู้คืน
+                        </button>
+                        <button class="btn btn-sm btn-danger rounded-pill px-2.5 py-1" title="ลบออกจาก DB ถาวร" onclick="permanentDeleteQuest(${item.id}, '${item.asset_id}')">
+                            <i class="bi bi-x-circle-fill"></i> ลบถาวร
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-danger">เกิดข้อผิดพลาดในการดึงข้อมูลถังขยะ</td></tr>';
+    }
+}
+
+// ↩️ กู้คืนรายการ
+async function restoreQuest(id, assetId) {
+    try {
+        const res = await fetch(`/api/v1/maintenance/${id}/restore`, { method: 'PUT' });
+        if (res.ok) {
+            openTrashModal();
+            loadMaintenanceData();
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// ❌ ลบรายการถาวรออกจาก DB
+function permanentDeleteQuest(id, assetId) {
+    Swal.fire({
+        title: '⚠️ ยืนยันการลบถาวร?',
+        text: `คุณกำลังลบรายการ #${assetId} ออกจากฐานข้อมูลจริง จะไม่สามารถกู้คืนได้อีก!`,
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#475569',
+        confirmButtonText: 'ลบถาวรทันที',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'swal-dark' }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch(`/api/v1/maintenance/${id}/permanent-delete`, { method: 'DELETE' });
+                if (res.ok) {
+                    openTrashModal();
+                    loadMaintenanceData();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    });
+}
+
+// ⚔️ ฟังก์ชันรับเควส
 function acceptQuest(id, assetId) {
     Swal.fire({
         title: '⚔️ ยืนยันการรับเควสซ่อม?',
@@ -310,7 +505,7 @@ function acceptQuest(id, assetId) {
     });
 }
 
-// ✅ ฟังก์ชันส่งเควส/ซ่อมเสร็จ (In Progress -> Completed)
+// ✅ ฟังก์ชันส่งเควส/ซ่อมเสร็จ
 function confirmComplete(id, assetId) {
     Swal.fire({
         title: '🏆 ยืนยันการซ่อมเสร็จสิ้น?',
@@ -362,7 +557,7 @@ function confirmComplete(id, assetId) {
     });
 }
 
-// ค้นหาข้อมูล real-time จากช่อง Search
+// ค้นหาข้อมูล real-time
 document.getElementById('searchInput').addEventListener('input', function(e) {
     const term = e.target.value.toLowerCase();
     const filtered = rawMaintenanceData.filter(item => 
@@ -373,7 +568,7 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
     renderTable(filtered);
 });
 
-// เริ่มต้นโหลดข้อมูล และตั้งค่าดึงข้อมูลอัตโนมัติทุกๆ 8 วินาที
+// เริ่มต้นโหลดข้อมูล
 document.addEventListener('DOMContentLoaded', () => {
     loadMaintenanceData();
     setInterval(loadMaintenanceData, 8000);
