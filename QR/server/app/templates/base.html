@@ -28,8 +28,8 @@
             display: none !important;
         }
 
-        /* --- THEME VARIABLES (DYNAMIC LIGHT/DARK) --- */
-        [data-bs-theme="dark"] {
+        /* --- PERMANENT LUXURY DARK THEME VARIABLES --- */
+        :root, [data-bs-theme="dark"] {
             --bg-main: #030611;
             --bg-sidebar: rgba(5, 8, 17, 0.95);
             --bg-card: rgba(13, 20, 36, 0.75);
@@ -41,24 +41,11 @@
             --topbar-border: rgba(255, 255, 255, 0.1);
         }
 
-        [data-bs-theme="light"] {
-            --bg-main: #f1f5f9;
-            --bg-sidebar: #ffffff;
-            --bg-card: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border-color: rgba(0, 0, 0, 0.08);
-            --lux-gold: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-            --lux-gold-glow: rgba(217, 119, 6, 0.15);
-            --topbar-border: rgba(0, 0, 0, 0.08);
-        }
-
         body {
             font-family: 'Sarabun', 'Plus Jakarta Sans', sans-serif;
             background-color: var(--bg-main) !important;
             color: var(--text-main) !important;
             overflow-x: hidden;
-            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         #cursor-canvas {
@@ -227,13 +214,12 @@
             transform: translateZ(0);
         }
 
-        /* --- SIDEBAR DYNAMIC STYLES --- */
+        /* --- SIDEBAR STYLES --- */
         .sidebar {
             min-height: 100vh;
             background: var(--bg-sidebar) !important;
             backdrop-filter: blur(25px);
             border-right: 1px solid var(--border-color) !important;
-            transition: background 0.3s ease, border-color 0.3s ease;
         }
 
         .brand-logo-img {
@@ -253,7 +239,7 @@
         }
 
         .nav-link:hover {
-            color: var(--text-main) !important; background: rgba(150, 150, 150, 0.08);
+            color: var(--text-main) !important; background: rgba(255, 255, 255, 0.05);
             border-color: var(--border-color); transform: translateX(4px);
         }
 
@@ -263,20 +249,20 @@
             box-shadow: 0 8px 25px var(--lux-gold-glow); border: none;
         }
 
-        /* --- GLASS CARDS & PANELS DYNAMIC --- */
+        /* --- GLASS CARDS & PANELS --- */
         .glass-panel, .glass-card, .card, .widget-panel {
             background: var(--bg-card) !important;
             backdrop-filter: blur(20px);
             border: 1px solid var(--border-color) !important;
             border-radius: 20px !important;
             color: var(--text-main) !important;
-            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease, background 0.3s ease !important;
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
             will-change: transform, box-shadow;
         }
 
         .glass-card:hover, .card:hover, .widget-panel:hover {
             border-color: rgba(193, 154, 107, 0.35) !important;
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08), 0 0 20px var(--lux-gold-glow) !important;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3), 0 0 20px var(--lux-gold-glow) !important;
             transform: translateY(-3px);
         }
 
@@ -298,7 +284,7 @@
 
         .modal-backdrop {
             z-index: 1040 !important;
-            background-color: rgba(0, 0, 0, 0.75) !important;
+            background-color: rgba(0, 0, 0, 0.85) !important;
         }
         .modal { z-index: 1050 !important; }
         body.modal-open { overflow: auto !important; padding-right: 0 !important; }
@@ -309,11 +295,11 @@
             border: 1px solid var(--border-color) !important;
             color: var(--text-main) !important;
             border-radius: 20px !important;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
         .modal-header, .modal-footer { border-color: var(--border-color) !important; }
 
-        /* Quest Dropdown Styling Integration */
+        /* Quest Dropdown Styling */
         .quest-dropdown-menu {
             background: var(--bg-card) !important;
             backdrop-filter: blur(25px);
@@ -328,7 +314,7 @@
             background-color: rgba(245, 158, 11, 0.1) !important;
         }
 
-        /* Html5QrcodeScanner Dark/Light Theme Override */
+        /* Html5QrcodeScanner Dark Theme Override */
         #reader button {
             background-color: #C19A6B !important;
             color: #030611 !important;
@@ -385,7 +371,7 @@
             <div class="modal-content text-center">
                 <div class="modal-header border-0 pb-0">
                     <h5 class="modal-title fw-bold"><i class="bi bi-camera me-2 text-warning"></i>สแกน QR Code ครุภัณฑ์</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div id="reader" style="width: 100%; min-height: 250px; border-radius: 12px; overflow: hidden; background: #000;"></div>
@@ -526,11 +512,6 @@
                             <i class="bi bi-qr-code-scan"></i> สแกน QR
                         </button>
 
-                        <!-- ปุ่มสลับธีม มืด/สว่าง -->
-                        <button class="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center" id="themeToggleBtn" style="width: 36px; height: 36px;" onclick="toggleTheme()" title="เปลี่ยนธีม">
-                            <i class="bi bi-sun-fill text-warning" id="themeIcon"></i>
-                        </button>
-
                         <!-- ปุ่มเปิด/ปิดเสียง -->
                         <button class="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center" id="soundToggleBtn" style="width: 36px; height: 36px;" onclick="toggleSound()" title="เปิด/ปิดเสียง">
                             <i class="bi bi-volume-up-fill text-info" id="soundIcon"></i>
@@ -576,10 +557,8 @@
             if (typeof AOS !== 'undefined') AOS.init();
             initIntroMode();
 
-            // โหลดและอัปเดตไอคอนตั้งค่าเดิมจาก LocalStorage
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            document.documentElement.setAttribute('data-bs-theme', savedTheme);
-            updateThemeIcon(savedTheme);
+            // ล็อกระบบเป็น Dark Mode ถาวร
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
 
             const savedSound = localStorage.getItem('sound_fx_enabled') || 'true';
             updateSoundIcon(savedSound);
@@ -596,27 +575,6 @@
             checkPendingQuests();
             setInterval(checkPendingQuests, 8000);
         });
-
-        // --- THEME TOGGLE ENGINE ---
-        function toggleTheme() {
-            const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-bs-theme');
-            const newTheme = (currentTheme === 'dark') ? 'light' : 'dark';
-            
-            html.setAttribute('data-bs-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
-        }
-
-        function updateThemeIcon(theme) {
-            const icon = document.getElementById('themeIcon');
-            if (!icon) return;
-            if (theme === 'dark') {
-                icon.className = 'bi bi-sun-fill text-warning';
-            } else {
-                icon.className = 'bi bi-moon-stars-fill text-primary';
-            }
-        }
 
         // --- SOUND TOGGLE ENGINE ---
         function toggleSound() {
