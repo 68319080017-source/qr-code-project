@@ -5,23 +5,36 @@
 
 {% block content %}
 <style>
-    /* ปิดฉากดำเดิมของ Bootstrap ทิ้งเพื่อแก้ปัญหาโดนบัง */
+    /* ปิด Backdrop เดิมของ Bootstrap เพื่อป้องกันปัญหากริดทับซ้อน */
     .modal-backdrop {
         display: none !important;
     }
 
-    /* ใส่ฉากดำโปร่งแสงที่ตัว Modal เอง และดึง z-index ขึ้นมาด้านบนสุด */
+    /* บังคับตัว Modal ให้ลอยอยู่ชั้นบนสุดแบบ Fixed ไม่โดน Container ตัดกรอบ */
     #req-modal {
-        background-color: rgba(0, 0, 0, 0.75) !important;
-        z-index: 99999 !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: rgba(0, 0, 0, 0.8) !important;
+        z-index: 999999 !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+    }
+
+    #req-modal .modal-dialog {
+        z-index: 1000000 !important;
+        margin-top: 5vh !important;
     }
 
     #req-modal .modal-content {
         background-color: #111827 !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
         color: #ffffff !important;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
     }
+
     #req-modal .form-control, #req-modal .form-select {
         background-color: #1f2937 !important;
         border-color: #374151 !important;
@@ -33,7 +46,7 @@
     <div>
         <p class="text-secondary mb-0">บันทึกการเบิกวัสดุสิ้นเปลือง / ครุภัณฑ์ ออกจากระบบ</p>
     </div>
-    <button id="btn-open-modal" data-bs-toggle="modal" data-bs-target="#req-modal" class="btn btn-danger px-4 py-2 rounded-3 fw-bold d-flex align-items-center gap-2 shadow-sm">
+    <button id="btn-open-modal" class="btn btn-danger px-4 py-2 rounded-3 fw-bold d-flex align-items-center gap-2 shadow-sm">
         <i class="bi bi-plus-lg"></i> บันทึกเบิกของ
     </button>
 </div>
@@ -61,15 +74,15 @@
     </div>
 </div>
 
-<!-- Custom Modal ฟอร์มเบิกของ (ปิด backdrop เดิมด้วย data-bs-backdrop="false") -->
-<div class="modal fade" id="req-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false">
+<!-- Custom Modal ฟอร์มเบิกของ -->
+<div class="modal fade" id="req-modal" tabindex="-1" aria-hidden="true" style="display: none;">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header border-bottom border-secondary border-opacity-25 pb-3">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
                     <i class="bi bi-box-arrow-right text-danger"></i> ฟอร์มเบิกอุปกรณ์
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" id="btn-close-x" aria-label="Close"></button>
             </div>
             <div class="modal-body pt-3">
                 <form id="req-form" class="d-flex flex-column gap-3">
@@ -96,7 +109,7 @@
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 mt-3">
-                        <button type="button" class="btn btn-outline-secondary rounded-3 px-4" data-bs-dismiss="modal">ยกเลิก</button>
+                        <button type="button" class="btn btn-outline-secondary rounded-3 px-4" id="btn-close-cancel">ยกเลิก</button>
                         <button type="submit" id="btn-submit" class="btn btn-danger rounded-3 px-4 fw-semibold">ยืนยันเบิกออก</button>
                     </div>
                 </form>
@@ -111,16 +124,43 @@
 (function () {
     const API_URL = '/api/v1';
 
+    function openModal() {
+        const modalEl = document.getElementById('req-modal');
+        if (modalEl) {
+            // ย้ายออกจาก container ไปอยู่ใต้ body โดยตรงเพื่อป้องกันการโดน overflow: hidden ตัดขอบ
+            if (modalEl.parentElement !== document.body) {
+                document.body.appendChild(modalEl);
+            }
+            modalEl.style.display = 'block';
+            modalEl.classList.add('show');
+            loadAssetsForSelect();
+        }
+    }
+
+    function closeModal() {
+        const modalEl = document.getElementById('req-modal');
+        if (modalEl) {
+            modalEl.style.display = 'none';
+            modalEl.classList.remove('show');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         loadRequisitions();
 
+        // ปุ่มเปิด Modal
         const btnOpen = document.getElementById('btn-open-modal');
         if (btnOpen) {
-            btnOpen.addEventListener('click', () => {
-                loadAssetsForSelect();
-            });
+            btnOpen.addEventListener('click', openModal);
         }
 
+        // ปุ่มปิด Modal
+        const btnX = document.getElementById('btn-close-x');
+        const btnCancel = document.getElementById('btn-close-cancel');
+        if (btnX) btnX.addEventListener('click', closeModal);
+        if (btnCancel) btnCancel.addEventListener('click', closeModal);
+
+        // ฟอร์ม Submit
         const form = document.getElementById('req-form');
         if (form) {
             form.addEventListener('submit', handleFormSubmit);
@@ -217,12 +257,7 @@
 
             if (res.ok) {
                 alert('บันทึกการเบิกสำเร็จ');
-                
-                // ปิด Modal
-                const modalEl = document.getElementById('req-modal');
-                const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                modalInstance.hide();
-
+                closeModal();
                 document.getElementById('req-form').reset();
                 loadRequisitions();
             } else {
