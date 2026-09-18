@@ -72,11 +72,72 @@
     </div>
 </div>
 
+<!-- Modal เพิ่มครุภัณฑ์ใหม่ -->
+<div class="modal fade" id="addAssetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content text-white" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px;">
+            <div class="modal-header border-bottom border-secondary">
+                <h5 class="modal-title fw-bold text-warning"><i class="bi bi-plus-circle me-2"></i>เพิ่มรายการครุภัณฑ์ใหม่</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addAssetForm" onsubmit="submitAddAsset(event)">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">รหัสครุภัณฑ์ *</label>
+                            <input type="text" name="asset_code" class="form-control bg-dark border-secondary text-white" placeholder="เช่น 0004" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">ชื่อรายการ *</label>
+                            <input type="text" name="name" class="form-control bg-dark border-secondary text-white" placeholder="เช่น เครื่องคอมพิวเตอร์" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">หมวดหมู่</label>
+                            <input type="text" name="category" class="form-control bg-dark border-secondary text-white" placeholder="เช่น ไอที, ของใช้">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">แผนก / หน่วยงาน</label>
+                            <input type="text" name="department" class="form-control bg-dark border-secondary text-white" placeholder="เช่น คอมธุรกิจ, ช่างยนต์">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">สถานที่จัดเก็บ</label>
+                            <input type="text" name="location" class="form-control bg-dark border-secondary text-white" placeholder="เช่น ห้องปฏิบัติการ 1">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">สถานะ</label>
+                            <select name="status" class="form-select bg-dark border-secondary text-white">
+                                <option value="ใช้งานปกติ">ใช้งานปกติ / ใช้งานได้</option>
+                                <option value="ส่งซ่อม">ส่งซ่อม</option>
+                                <option value="ถูกเบิกออก">ถูกเบิกออก</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">ราคา (บาท)</label>
+                            <input type="number" step="0.01" name="price" class="form-control bg-dark border-secondary text-white" placeholder="0.00">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">รูปภาพครุภัณฑ์</label>
+                            <input type="file" name="file" accept="image/*" class="form-control bg-dark border-secondary text-white">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary p-3">
+                    <button type="button" class="btn btn-outline-secondary rounded-3" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" id="btnSaveAsset" class="btn btn-warning rounded-3 fw-semibold px-4">
+                        <span id="saveSpinner" class="spinner-border spinner-border-sm me-1 d-none" role="status"></span>
+                        บันทึกข้อมูล
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     let rawAssetsData = [];
 
     document.addEventListener('DOMContentLoaded', () => {
-        // ดึงค่าคำค้นหาจาก URL ถ้ามาจากการสแกน QR Code (เช่น ?search= dasdsd)
+        // ดึงค่าคำค้นหาจาก URL ถ้ามาจากการสแกน QR Code (เช่น ?search=0001)
         const urlParams = new URLSearchParams(window.location.search);
         const searchQuery = urlParams.get('search');
         if (searchQuery) {
@@ -87,6 +148,7 @@
         fetchAssetsData();
     });
 
+    // ดึงข้อมูลรายการครุภัณฑ์จาก Backend API
     async function fetchAssetsData() {
         const tbody = document.getElementById('assetsTableBody');
         try {
@@ -96,7 +158,7 @@
             }
             rawAssetsData = await response.json();
             
-            // ถ้ามีคำค้นหาค้างในช่อง ค้นหาอัตโนมัติทันที
+            // กรองข้อมูลและแสดงผล
             filterAssets();
         } catch (error) {
             console.error('Error fetching assets:', error);
@@ -113,6 +175,7 @@
         }
     }
 
+    // แสดงผลข้อมูลลงในตาราง HTML
     function renderAssetsTable(data) {
         const tbody = document.getElementById('assetsTableBody');
         const countEl = document.getElementById('assetCount');
@@ -141,13 +204,13 @@
             else if (status.includes('ส่งซ่อม') || status.includes('แจ้งซ่อม')) badgeClass = 'bg-warning text-dark';
             else if (status.includes('เบิก') || status.includes('ชำรุด')) badgeClass = 'bg-danger';
 
-            // จัดการรูปภาพสำรองเมื่อไม่มีรูป
+            // รูปภาพสำรอง
             const imgSrc = item.image_path ? item.image_path : '/static/img/logo.png';
 
-            // ฟอร์แมตตัวเลขราคา
+            // รูปแบบตัวเลขราคา
             const priceFormatted = item.price ? Number(item.price).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
-            // เส้นทางไฟล์ QR Code
+            // เส้นทาง QR Code
             const qrPath = item.qr_code_path ? item.qr_code_path : '#';
 
             html += `
@@ -176,6 +239,7 @@
         tbody.innerHTML = html;
     }
 
+    // กรองข้อมูลด้วยคำค้นหาและสถานะ
     function filterAssets() {
         const searchValue = document.getElementById('searchInput').value.toLowerCase().trim();
         const statusValue = document.getElementById('statusFilter').value;
@@ -196,8 +260,56 @@
         renderAssetsTable(filtered);
     }
 
+    // เปิด Modal เพิ่มครุภัณฑ์
     function openAddAssetModal() {
-        alert('เตรียมเปิด Modal เพิ่มครุภัณฑ์ใหม่');
+        const el = document.getElementById('addAssetModal');
+        if (el && typeof bootstrap !== 'undefined') {
+            const modal = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
+            modal.show();
+        }
+    }
+
+    // ยิง API บันทึกข้อมูลครุภัณฑ์ใหม่
+    async function submitAddAsset(event) {
+        event.preventDefault();
+        const form = document.getElementById('addAssetForm');
+        const formData = new FormData(form);
+
+        const btnSave = document.getElementById('btnSaveAsset');
+        const spinner = document.getElementById('saveSpinner');
+        
+        btnSave.disabled = true;
+        spinner.classList.remove('d-none');
+
+        try {
+            const response = await fetch('/api/v1/assets/', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('ไม่สามารถบันทึกข้อมูลได้');
+            }
+
+            alert('เพิ่มครุภัณฑ์เรียบร้อยแล้ว!');
+            
+            // ปิด Modal และรีเซ็ตฟอร์ม
+            const el = document.getElementById('addAssetModal');
+            const modal = bootstrap.Modal.getInstance(el);
+            if (modal) modal.hide();
+            
+            form.reset();
+            
+            // ดึงข้อมูลใหม่
+            fetchAssetsData();
+
+        } catch (err) {
+            console.error(err);
+            alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+        } finally {
+            btnSave.disabled = false;
+            spinner.classList.add('d-none');
+        }
     }
 </script>
 {% endblock %}
