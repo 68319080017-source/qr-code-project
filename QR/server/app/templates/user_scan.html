@@ -61,13 +61,13 @@
                 </span>
             </div>
 
-            <!-- 🎨 ป้ายสถานะแยกสีตามค่าใน DB -->
+            <!-- 🎨 ป้ายสถานะ -->
             <div class="bg-slate-900/90 border border-slate-700/60 p-4 rounded-xl flex items-center justify-between">
                 <span class="text-xs text-slate-400">สถานะปัจจุบัน</span>
                 
                 {% set st = asset.status if asset.status else 'ใช้งานปกติ' %}
                 
-                {% if 'ปกติ' in st %}
+                {% if 'ปกติ' in st or 'ใช้งาน' in st %}
                     <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                         {{ st }}
                     </span>
@@ -106,7 +106,7 @@
     </div>
 
     <!-- 🚨 Modal ฟอร์มแจ้งซ่อม -->
-    <div id="reportModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div id="reportModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 hidden">
         <div class="bg-slate-800 border border-slate-700/90 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
             <h2 class="text-lg font-bold text-white mb-1 flex items-center gap-2">
                 <span class="text-amber-400">🛠️</span> ฟอร์มแจ้งซ่อมครุภัณฑ์
@@ -140,7 +140,7 @@
                     <button type="button" onclick="closeReportModal()" class="w-1/2 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-semibold rounded-xl transition-all">
                         ยกเลิก
                     </button>
-                    <button type="submit" class="w-1/2 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-bold rounded-xl transition-all shadow-lg shadow-amber-500/20">
+                    <button type="submit" id="btnSubmitReport" class="w-1/2 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-bold rounded-xl transition-all shadow-lg shadow-amber-500/20">
                         ส่งรายงาน
                     </button>
                 </div>
@@ -149,12 +149,22 @@
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // ย้าย Modal ไปอยู่ใต้ body ป้องกันการโดนตัดขอบในมือถือ
+            const modalEl = document.getElementById('reportModal');
+            if (modalEl && modalEl.parentElement !== document.body) {
+                document.body.appendChild(modalEl);
+            }
+        });
+
         function openReportModal() {
-            document.getElementById('reportModal').classList.remove('hidden');
+            const modalEl = document.getElementById('reportModal');
+            if (modalEl) modalEl.classList.remove('hidden');
         }
 
         function closeReportModal() {
-            document.getElementById('reportModal').classList.add('hidden');
+            const modalEl = document.getElementById('reportModal');
+            if (modalEl) modalEl.classList.add('hidden');
         }
 
         async function submitReport(e) {
@@ -163,12 +173,32 @@
             const assetIdRaw = document.getElementById('assetId').value;
             const assetCodeRaw = document.getElementById('assetCode').value;
 
-            // 🟢 ถ้าไม่มี ID ตัวเลข ให้ใช้ asset_code ส่งไปแทน Backend จะได้ค้นเจอ
-            let finalAssetId = assetIdRaw ? parseInt(assetIdRaw, 10) : 0;
-            if (!finalAssetId && assetCodeRaw) {
+            // 🟢 ตรวจสอบและแปลง ID ให้ถูกต้อง
+            let finalAssetId = 0;
+            if (assetIdRaw && !isNaN(parseInt(assetIdRaw, 10))) {
+                finalAssetId = parseInt(assetIdRaw, 10);
+            } else if (assetCodeRaw && !isNaN(parseInt(assetCodeRaw, 10))) {
                 finalAssetId = parseInt(assetCodeRaw, 10);
             }
+
+            if (!finalAssetId) {
+                Swal.fire({
+                    title: 'ไม่พบรหัสอุปกรณ์!',
+                    text: 'ไม่สามารถระบุ ID ครุภัณฑ์ได้ กรุณาสแกนใหม่อีกครั้ง',
+                    icon: 'warning',
+                    background: '#0f172a',
+                    color: '#f8fafc',
+                    confirmButtonColor: '#f59e0b'
+                });
+                return;
+            }
             
+            const btnSubmit = document.getElementById('btnSubmitReport');
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.innerText = 'กำลังส่ง...';
+            }
+
             const payload = {
                 asset_id: finalAssetId,
                 reporter_name: document.getElementById('reporterName').value,
@@ -220,6 +250,11 @@
                     color: '#f8fafc',
                     confirmButtonColor: '#ef233c'
                 });
+            } finally {
+                if (btnSubmit) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerText = 'ส่งรายงาน';
+                }
             }
         }
     </script>

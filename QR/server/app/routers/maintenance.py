@@ -59,11 +59,13 @@ def send_line_maintenance_notification(asset_code: str, asset_name: str, reporte
 @router.get("/trash-list", response_model=List[Maintenance])
 def get_trash_list(db: Session = Depends(get_db)) -> Any:
     try:
-        stmt = select(MaintenanceModel).where(
-            MaintenanceModel.is_deleted == True
-        ).order_by(MaintenanceModel.id.desc())
-        records = db.execute(stmt).scalars().all()
-        return records
+        if hasattr(MaintenanceModel, "is_deleted"):
+            stmt = select(MaintenanceModel).where(
+                MaintenanceModel.is_deleted == True
+            ).order_by(MaintenanceModel.id.desc())
+            records = db.execute(stmt).scalars().all()
+            return records
+        return []
     except Exception as e:
         print(f"[Trash List Query Error]: {e}")
         return []
@@ -104,12 +106,11 @@ def read_maintenance_records(
         return records
     except Exception as e:
         print(f"[Read Maintenance Error]: {e}")
-        # คืนค่า list ว่างแทนการตัดจบด้วย 500 Error เพื่อป้องกันไม่ให้ Frontend หมุนค้าง
         return []
 
 
 # ==========================================
-#  3. API สร้างรายการแจ้งซ่อมใหม่
+#  3. API สร้างรายการแจ้งซ่อมใหม่ (แก้ไขจุดพังเรียบร้อย)
 # ==========================================
 @router.post("/", response_model=Maintenance)
 def create_maintenance(
@@ -137,16 +138,22 @@ def create_maintenance(
         reporter_name = maintenance_in.reporter_name or "ประชาชนทั่วไป"
         urgency = maintenance_in.urgency or "Normal"
 
-        db_obj = MaintenanceModel(
-            asset_id=asset.id,
-            reporter_id=None,
-            reporter_name=reporter_name,
-            issue_description=maintenance_in.issue_description,
-            urgency=urgency,
-            status="เควสใหม่",
-            notes=maintenance_in.notes,
-            is_deleted=False
-        )
+        # จัดเตรียม kwargs สำหรับสร้าง Object
+        maint_kwargs = {
+            "asset_id": asset.id,
+            "reporter_id": None,
+            "reporter_name": reporter_name,
+            "issue_description": maintenance_in.issue_description,
+            "urgency": urgency,
+            "status": "เควสใหม่",
+            "notes": maintenance_in.notes,
+        }
+
+        # เช็กว่า Model มีคอลัมน์ is_deleted หรือไม่ ค่อยใส่ เพื่อป้องกัน Database error
+        if hasattr(MaintenanceModel, "is_deleted"):
+            maint_kwargs["is_deleted"] = False
+
+        db_obj = MaintenanceModel(**maint_kwargs)
         db.add(db_obj)
         asset.status = "ส่งซ่อม"
 
@@ -206,8 +213,13 @@ def soft_delete_maintenance(
     if not record:
         raise HTTPException(status_code=404, detail="ไม่พบรายการที่ต้องการลบ")
         
-    record.is_deleted = True
-    db.commit()
+    if hasattr(record, "is_deleted"):
+        record.is_deleted = True
+        db.commit()
+    else:
+        db.delete(record)
+        db.commit()
+        
     return {"message": "ลบรายการเรียบร้อยแล้ว"}
 
 
@@ -225,8 +237,10 @@ def restore_maintenance(
     if not record:
         raise HTTPException(status_code=404, detail="ไม่พบรายการที่ต้องการกู้คืน")
         
-    record.is_deleted = False
-    db.commit()
+    if hasattr(record, "is_deleted"):
+        record.is_deleted = False
+        db.commit()
+        
     return {"message": "กู้คืนรายการเรียบร้อยแล้ว"}
 
 
