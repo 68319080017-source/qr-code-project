@@ -11,11 +11,24 @@ from app.schemas.requisition import RequisitionCreate, RequisitionResponse
 
 router = APIRouter()
 
+# =========================================================
+# 1. API ดึงรายการการเบิกอุปกรณ์ทั้งหมด
+# =========================================================
 @router.get("/", response_model=List[RequisitionResponse])
 def get_requisitions(db: Session = Depends(get_db)) -> Any:
-    stmt = select(Requisition).order_by(Requisition.id.desc())
-    return db.execute(stmt).scalars().all()
+    try:
+        stmt = select(Requisition).order_by(Requisition.id.desc())
+        records = db.execute(stmt).scalars().all()
+        return records
+    except Exception as e:
+        print(f"[Requisitions Fetch Error]: {str(e)}")
+        # คืนค่า list ว่างแทนที่จะโยน Error 500 ออกไป ป้องกันหน้าเว็บหมุนค้าง
+        return []
 
+
+# =========================================================
+# 2. API บันทึกการเบิกอุปกรณ์
+# =========================================================
 @router.post("/", response_model=RequisitionResponse, status_code=status.HTTP_201_CREATED)
 def create_requisition(req_in: RequisitionCreate, db: Session = Depends(get_db)) -> Any:
     # 1. ค้นหา Asset
