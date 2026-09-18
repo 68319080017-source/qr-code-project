@@ -541,19 +541,17 @@
         let previousQuestCount = -1;
         let activeQuestId = null;
         let html5QrcodeScanner = null;
-        let isFetchingQuests = false; // Flag ป้องกันการยิง API ซ้อนกัน
+        let isFetchingQuests = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             if (typeof AOS !== 'undefined') AOS.init();
             initIntroMode();
 
-            // ล็อกระบบเป็น Dark Mode ถาวร
             document.documentElement.setAttribute('data-bs-theme', 'dark');
 
             const savedSound = localStorage.getItem('sound_fx_enabled') || 'true';
             updateSoundIcon(savedSound);
 
-            // ปิดกล้องอัตโนมัติเมื่อ Modal ถูกซ่อน
             const modalEl = document.getElementById('qrScannerModal');
             if (modalEl) {
                 modalEl.addEventListener('hidden.bs.modal', function () {
@@ -561,18 +559,16 @@
                 });
             }
 
-            // เริ่มระบบดึงเควสแบบ Real-time เช็กทุก 15 วินาที (ไม่สร้างภาระให้ Network)
             checkPendingQuests();
             setInterval(checkPendingQuests, 15000);
         });
 
         // --- REAL-TIME QUEST ENGINE ---
         async function checkPendingQuests() {
-            if (isFetchingQuests) return; // ถ้าดึงรอบเก่าอยู่ ให้ข้ามไปก่อน
+            if (isFetchingQuests) return;
             isFetchingQuests = true;
 
             try {
-                // Encode URL ป้องกันปัญหาภาษาไทยใน Query Param
                 const statusParam = encodeURIComponent('เควสใหม่');
                 const response = await fetch(`/api/v1/maintenance/?status=${statusParam}`);
                 if (!response.ok) return;
@@ -580,7 +576,6 @@
                 const quests = await response.json();
                 const count = Array.isArray(quests) ? quests.length : 0;
 
-                // 1. อัปเดตตัวเลข Badge ที่ปุ่มเควสและ Sidebar
                 const questBadge = document.getElementById('questBadge');
                 const pendingBadge = document.getElementById('pendingBadge');
                 const questCountHeader = document.getElementById('questCountHeader');
@@ -601,7 +596,6 @@
                     questCountHeader.textContent = `${count} เควส`;
                 }
 
-                // 2. ถ้ามีเควสใหม่เพิ่มขึ้น ส่งเสียงเตือน + เด้ง Modal ป๊อปอัปอัตโนมัติ
                 if (previousQuestCount !== -1 && count > previousQuestCount) {
                     playQuestNotificationSound();
                     if (quests.length > 0) {
@@ -610,7 +604,6 @@
                 }
                 previousQuestCount = count;
 
-                // 3. แสดงรายการเควสใน Dropdown
                 const questList = document.getElementById('questList');
                 if (questList) {
                     if (count === 0) {
@@ -639,94 +632,114 @@
             }
         }
 
-        // --- DROPDOWN CONTROLLER ---
         function toggleQuestDropdown() {
             const dd = document.getElementById('questDropdown');
-            if (!dd) return;
-            dd.style.display = (dd.style.display === 'none' || dd.style.display === '') ? 'block' : 'none';
-        }
-
-        document.addEventListener('click', (e) => {
-            const btn = document.getElementById('questBtn');
-            const dd = document.getElementById('questDropdown');
-            if (btn && dd && !btn.contains(e.target) && !dd.contains(e.target)) {
-                dd.style.display = 'none';
-            }
-        });
-
-        // --- MODAL & AUDIO UTILITIES ---
-        function playQuestNotificationSound() {
-            if (localStorage.getItem('sound_fx_enabled') === 'false') return;
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.2);
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.3);
-            } catch (e) {
-                console.log('Audio playback blocked');
+            if (dd) {
+                dd.style.display = (dd.style.display === 'none' || !dd.style.display) ? 'block' : 'none';
             }
         }
 
         function showQuestModal(quest) {
             if (!quest) return;
-            activeQuestId = quest.id;
-            document.getElementById('questAssetCode').innerText = quest.asset_code || `AST-${quest.asset_id}`;
-            document.getElementById('questDescription').innerText = quest.issue_description || 'ไม่มีรายละเอียด';
-            document.getElementById('questReporter').innerText = quest.reporter_name || 'ไม่ระบุ';
-            document.getElementById('questTime').innerText = quest.created_at ? new Date(quest.created_at).toLocaleTimeString('th-TH') : '-';
             
-            const badgeEl = document.getElementById('questUrgencyBadge');
-            if (badgeEl) {
-                badgeEl.innerHTML = `<span class="badge bg-danger">${quest.urgency || 'เร่งด่วน'}</span>`;
+            activeQuestId = quest.id;
+
+            const assetCodeEl = document.getElementById('questAssetCode');
+            if (assetCodeEl) {
+                assetCodeEl.textContent = quest.asset_code || `AST-${quest.asset_id || quest.id}`;
             }
 
-            const el = document.getElementById('questModal');
-            if (el && typeof bootstrap !== 'undefined') {
-                const modal = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
-                modal.show();
+            const descEl = document.getElementById('questDescription');
+            if (descEl) {
+                descEl.textContent = quest.issue_description || 'ไม่มีรายละเอียด';
+            }
+
+            const reporterEl = document.getElementById('questReporter');
+            if (reporterEl) {
+                reporterEl.textContent = quest.reporter_name || 'ประชาชนทั่วไป';
+            }
+
+            const timeEl = document.getElementById('questTime');
+            if (timeEl) {
+                timeEl.textContent = quest.created_at ? new Date(quest.created_at).toLocaleTimeString('th-TH') : '-';
+            }
+
+            const urgencyBadge = document.getElementById('questUrgencyBadge');
+            if (urgencyBadge) {
+                urgencyBadge.innerHTML = `<span class="badge bg-danger px-3 py-1">${quest.urgency || 'Normal'}</span>`;
+            }
+
+            const modalEl = document.getElementById('questModal');
+            if (modalEl) {
+                const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                modalInstance.show();
             }
         }
 
-        async function showQuestModalById(id) {
+        async function showQuestModalById(questId) {
             try {
-                const res = await fetch(`/api/v1/maintenance/${id}`);
-                if (res.ok) {
-                    const quest = await res.json();
+                const statusParam = encodeURIComponent('เควสใหม่');
+                const res = await fetch(`/api/v1/maintenance/?status=${statusParam}`);
+                if (!res.ok) return;
+                const quests = await res.json();
+                const quest = quests.find(q => q.id === questId);
+                if (quest) {
                     showQuestModal(quest);
                 }
             } catch (err) {
-                console.error(err);
+                console.error("Error fetching quest details:", err);
             }
         }
 
+        // --- FUNCTION ACCEPT QUEST ---
         async function acceptCurrentQuest() {
-            if (!activeQuestId) return;
+            if (!activeQuestId) {
+                alert("ไม่สามารถรับเควสได้: ไม่พบ ID ของเควส");
+                return;
+            }
+
+            const btnAccept = document.getElementById('btnAcceptQuest');
+            if (btnAccept) {
+                btnAccept.disabled = true;
+                btnAccept.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> กำลังรับเควส...';
+            }
+
             try {
-                const res = await fetch(`/api/v1/maintenance/${activeQuestId}/accept`, { method: 'POST' });
+                const res = await fetch(`/api/v1/maintenance/${activeQuestId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'กำลังดำเนินการ' })
+                });
+
                 if (res.ok) {
-                    const el = document.getElementById('questModal');
-                    if (el) {
-                        const modal = bootstrap.Modal.getInstance(el);
-                        if (modal) modal.hide();
-                    }
+                    const modalEl = document.getElementById('questModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if (modalInstance) modalInstance.hide();
+
+                    alert("⚔️ รับเควสสำเร็จ! อัปเดตสถานะเป็น 'กำลังดำเนินการ' เรียบร้อย");
+
                     checkPendingQuests();
+                    
+                    if (window.location.pathname === '/maintenance') {
+                        window.location.reload();
+                    }
                 } else {
-                    alert('ไม่สามารถรับเควสได้');
+                    const errData = await res.json().catch(() => ({}));
+                    console.error("[Accept Quest Error]:", errData);
+                    alert("ไม่สามารถรับเควสได้: " + (errData.detail || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์"));
                 }
             } catch (err) {
-                console.error(err);
+                console.error("[Accept Quest Fetch Error]:", err);
+                alert("ไม่สามารถรับเควสได้: เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว");
+            } finally {
+                if (btnAccept) {
+                    btnAccept.disabled = false;
+                    btnAccept.innerHTML = '⚔️ รับเควส (Accept Quest)';
+                }
             }
         }
 
-        // --- SOUND & INTRO LOGIC ---
+        // --- SOUND & INTRO UTILS ---
         function toggleSound() {
             const current = localStorage.getItem('sound_fx_enabled') || 'true';
             const next = current === 'true' ? 'false' : 'true';
@@ -736,55 +749,90 @@
 
         function updateSoundIcon(enabled) {
             const icon = document.getElementById('soundIcon');
-            if (!icon) return;
-            if (enabled === 'true') {
-                icon.className = 'bi bi-volume-up-fill text-info';
-            } else {
-                icon.className = 'bi bi-volume-mute-fill text-danger';
+            if (icon) {
+                if (enabled === 'true') {
+                    icon.className = 'bi bi-volume-up-fill text-info';
+                } else {
+                    icon.className = 'bi bi-volume-mute-fill text-secondary';
+                }
             }
+        }
+
+        function playQuestNotificationSound() {
+            if (localStorage.getItem('sound_fx_enabled') === 'false') return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch (e) {}
         }
 
         function initIntroMode() {
-            const btnStart = document.getElementById('btnStartIntro');
             const overlay = document.getElementById('ps2-intro-overlay');
+            const btnStart = document.getElementById('btnStartIntro');
             if (!overlay) return;
 
+            if (sessionStorage.getItem('intro_played') === 'true') {
+                overlay.style.display = 'none';
+                return;
+            }
+
             const hideIntro = () => {
+                sessionStorage.setItem('intro_played', 'true');
                 overlay.classList.add('fade-out');
                 setTimeout(() => { overlay.style.display = 'none'; }, 800);
-                sessionStorage.setItem('intro_played', 'true');
             };
 
-            btnStart?.addEventListener('click', hideIntro);
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay || overlay.contains(e.target)) hideIntro();
-            });
+            if (btnStart) btnStart.addEventListener('click', hideIntro);
+            overlay.addEventListener('click', hideIntro);
         }
 
-        // --- QR SCANNER ---
+        // --- QR SCANNER UTILS ---
         function openQRScanner() {
-            const el = document.getElementById('qrScannerModal');
-            if (el && typeof bootstrap !== 'undefined') {
-                const modal = new bootstrap.Modal(el);
-                modal.show();
-                
-                setTimeout(() => {
-                    if (typeof Html5QrcodeScanner !== 'undefined') {
-                        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 200 });
-                        html5QrcodeScanner.render((decodedText) => {
-                            document.getElementById('scannerResult').innerText = `พบรหัส: ${decodedText}`;
-                            clearQRScanner();
-                            window.location.href = `/assets?search=${encodeURIComponent(decodedText)}`;
-                        }, (error) => {});
-                    }
-                }, 300);
-            }
+            const modalEl = document.getElementById('qrScannerModal');
+            if (!modalEl) return;
+            
+            const modalInstance = new bootstrap.Modal(modalEl);
+            modalInstance.show();
+
+            const resultDiv = document.getElementById('scannerResult');
+            if (resultDiv) resultDiv.innerText = 'กำลังเปิดกล้อง...';
+
+            setTimeout(() => {
+                html5QrcodeScanner = new Html5Qrcode("reader");
+                html5QrcodeScanner.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 220, height: 220 } },
+                    (decodedText) => {
+                        if (resultDiv) resultDiv.innerText = 'พบรหัส: ' + decodedText;
+                        clearQRScanner();
+                        modalInstance.hide();
+                        window.location.href = decodedText.startsWith('http') ? decodedText : `/user-scan/${decodedText}`;
+                    },
+                    () => {}
+                ).catch(err => {
+                    if (resultDiv) resultDiv.innerText = 'ไม่สามารถเปิดกล้องได้: ' + err;
+                });
+            }, 300);
         }
 
         function clearQRScanner() {
             if (html5QrcodeScanner) {
-                html5QrcodeScanner.clear().catch(err => console.error(err));
-                html5QrcodeScanner = null;
+                html5QrcodeScanner.stop().then(() => {
+                    html5QrcodeScanner.clear();
+                    html5QrcodeScanner = null;
+                }).catch(() => {
+                    html5QrcodeScanner = null;
+                });
             }
         }
     </script>
