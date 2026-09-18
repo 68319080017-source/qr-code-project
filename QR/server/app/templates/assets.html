@@ -1,322 +1,203 @@
 {% extends "base.html" %}
 
-{% block title %}ครุภัณฑ์ทั้งหมด - ระบบจัดการครุภัณฑ์{% endblock %}
+{% block title %}รายการครุภัณฑ์ทั้งหมด - ระบบจัดการครุภัณฑ์{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold mb-1"><i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>รายการครุภัณฑ์ทั้งหมด</h4>
-        <p class="mb-0 text-muted">จัดการข้อมูล เพิ่ม แก้ไข และตรวจสอบสถานะครุภัณฑ์</p>
+<div class="container-fluid px-0">
+    <!-- Header & Action Bar -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h4 class="fw-bold mb-1 text-white">
+                <i class="bi bi-box-seam me-2 text-warning"></i>รายการครุภัณฑ์ทั้งหมด
+            </h4>
+            <p class="text-muted small mb-0">จัดการข้อมูล เพิ่ม แก้ไข และตรวจสอบสถานะครุภัณฑ์ภายในระบบ</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-warning rounded-3 px-3 py-2 fw-semibold" onclick="openAddAssetModal()">
+                <i class="bi bi-plus-lg me-1"></i> เพิ่มครุภัณฑ์
+            </button>
+        </div>
     </div>
-    <button class="btn btn-primary px-3" id="btn-add-asset">
-        <i class="fa-solid fa-plus me-2"></i>เพิ่มครุภัณฑ์
-    </button>
-</div>
 
-<!-- ตารางแสดงรายการครุภัณฑ์ -->
-<div class="card p-3">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead>
-                <tr>
-                    <th>รูปภาพ</th>
-                    <th>รหัสครุภัณฑ์</th>
-                    <th>ชื่อรายการ</th>
-                    <th>หมวดหมู่</th>
-                    <th>แผนก/หน่วยงาน</th>
-                    <th>สถานะ</th>
-                    <th>ราคา (บาท)</th>
-                    <th>QR Code</th>
-                    <th class="text-center">จัดการ</th>
-                </tr>
-            </thead>
-            <tbody id="assetTableBody">
-                <tr>
-                    <td colspan="9" class="text-center py-4 text-muted">กำลังโหลดข้อมูล...</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Modal เพิ่ม/แก้ไขครุภัณฑ์ -->
-<div class="modal fade" id="assetModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold" id="modalTitle">เพิ่มครุภัณฑ์ใหม่</h5>
-                <button type="button" class="btn-close" id="btn-close-modal-x" aria-label="Close"></button>
+    <!-- Filter & Search Bar -->
+    <div class="glass-card p-3 mb-4">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" id="searchInput" class="form-control bg-dark border-secondary text-white" placeholder="ค้นหา รหัส, ชื่อ, หมวดหมู่, แผนก..." onkeyup="filterAssets()">
+                </div>
             </div>
-            <div class="modal-body">
-                <form id="assetForm">
-                    <input type="hidden" id="assetId">
-                    <div class="mb-3">
-                        <label class="form-label">รหัสครุภัณฑ์</label>
-                        <input type="text" class="form-control" id="assetCode" required placeholder="เช่น AST-67001">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">ชื่อครุภัณฑ์</label>
-                        <input type="text" class="form-control" id="assetName" required placeholder="เช่น คอมพิวเตอร์ All-in-One">
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">หมวดหมู่</label>
-                            <input type="text" class="form-control" id="assetCategory" placeholder="เช่น ไอที/คอมพิวเตอร์">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">แผนก/หน่วยงาน</label>
-                            <input type="text" class="form-control" id="assetDepartment" placeholder="เช่น ศูนย์สารสนเทศ">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">สถานะ</label>
-                            <select class="form-select" id="assetStatus">
-                                <option value="ใช้งานปกติ">ใช้งานปกติ</option>
-                                <option value="ถูกเบิกออก">ถูกเบิกออก</option>
-                                <option value="ส่งซ่อม">ส่งซ่อม</option>
-                                <option value="ชำรุด/แทงจำหน่าย">ชำรุด/แทงจำหน่าย</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">ราคา (บาท)</label>
-                            <input type="number" class="form-control" id="assetPrice" value="0" step="any">
-                        </div>
-                    </div>
-
-                    <div class="mb-3 border-top pt-3">
-                        <label class="form-label fw-bold text-primary"><i class="fa-solid fa-camera me-1"></i>รูปภาพครุภัณฑ์ (ฝากรูปถาวร)</label>
-                        <input type="file" class="form-control" id="assetImage" accept="image/*">
-                        <div class="form-text text-muted">แนบรูปถ่ายครุภัณฑ์เพื่อบันทึกเข้า Cloudinary ถาวร</div>
-                    </div>
-
-                    <div class="text-end mt-4">
-                        <button type="button" class="btn btn-secondary me-2" id="btn-close-modal">ยกเลิก</button>
-                        <button type="submit" class="btn btn-primary" id="btnSaveAsset">บันทึกข้อมูล</button>
-                    </div>
-                </form>
+            <div class="col-md-4 col-lg-4">
+                <select id="statusFilter" class="form-select bg-dark border-secondary text-white" onchange="filterAssets()">
+                    <option value="">-- สถานะทั้งหมด --</option>
+                    <option value="ใช้งานได้">ใช้งานได้ / ใช้งานปกติ</option>
+                    <option value="ส่งซ่อม">ส่งซ่อม</option>
+                    <option value="ถูกเบิกออก">ถูกเบิกออก</option>
+                </select>
+            </div>
+            <div class="col-md-2 col-lg-3 text-md-end">
+                <span class="text-muted small">รวมทั้งหมด: <strong id="assetCount" class="text-warning fs-6">0</strong> รายการ</span>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
 
-{% block extra_js %}
-<script>
-(function() {
-    const API_URL = '/api/v1/assets';
-    let assetModalInstance = null;
-
-    function getModal() {
-        const el = document.getElementById('assetModal');
-        if (!el) return null;
-        if (!assetModalInstance && typeof bootstrap !== 'undefined') {
-            assetModalInstance = new bootstrap.Modal(el);
-        }
-        return assetModalInstance;
-    }
-
-    function resetForm() {
-        const form = document.getElementById('assetForm');
-        if (form) form.reset();
-        document.getElementById('assetId').value = '';
-        document.getElementById('assetImage').value = '';
-        document.getElementById('modalTitle').innerText = 'เพิ่มครุภัณฑ์ใหม่';
-        document.getElementById('assetCode').disabled = false;
-    }
-
-    function closeModal() {
-        const modal = getModal();
-        if (modal) modal.hide();
-    }
-
-    window.escapeHtml = function(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    };
-
-    window.editAsset = function(id, code, name, cat, dept, status, price) {
-        document.getElementById('assetId').value = id;
-        document.getElementById('assetCode').value = code;
-        document.getElementById('assetCode').disabled = true;
-        document.getElementById('assetName').value = name;
-        document.getElementById('assetCategory').value = cat;
-        document.getElementById('assetDepartment').value = dept;
-        document.getElementById('assetStatus').value = status;
-        document.getElementById('assetPrice').value = price;
-        document.getElementById('assetImage').value = '';
-        
-        document.getElementById('modalTitle').innerText = 'แก้ไขข้อมูลครุภัณฑ์';
-        const modal = getModal();
-        if (modal) modal.show();
-    };
-
-    window.deleteAsset = async function(id) {
-        if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?')) return;
-        try {
-            const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                loadAssets();
-            } else {
-                alert('ลบข้อมูลไม่สำเร็จ');
-            }
-        } catch (err) {
-            console.error('Delete error:', err);
-            alert('เกิดข้อผิดพลาดในการสั่งลบ');
-        }
-    };
-
-    async function loadAssets() {
-        const tbody = document.getElementById('assetTableBody');
-        if (!tbody) return;
-
-        try {
-            const res = await fetch(API_URL);
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            
-            const data = await res.json();
-            tbody.innerHTML = '';
-
-            if (!Array.isArray(data) || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted">ยังไม่มีข้อมูลครุภัณฑ์</td></tr>`;
-                return;
-            }
-
-            let rowsHtml = '';
-            data.forEach(item => {
-                let badgeClass = 'bg-success';
-                if (item.status === 'ถูกเบิกออก') badgeClass = 'bg-info text-dark';
-                if (item.status === 'ส่งซ่อม') badgeClass = 'bg-warning text-dark';
-                if (item.status === 'ชำรุด/แทงจำหน่าย') badgeClass = 'bg-danger';
-
-                const priceVal = parseFloat(item.price) || 0;
-                const imgUrl = item.image_path || item.image_url;
-                const imgThumb = imgUrl 
-                    ? `<img src="${imgUrl}" width="40" height="40" class="rounded border object-fit-cover shadow-sm" style="cursor:pointer;" onclick="window.open('${imgUrl}', '_blank')">`
-                    : `<span class="text-muted"><i class="fa-solid fa-image text-secondary"></i></span>`;
-
-                const safeCode = escapeHtml(item.asset_code || '');
-                const safeName = escapeHtml(item.name || '');
-                const safeCat = escapeHtml(item.category || '');
-                const safeDept = escapeHtml(item.department || '');
-                const safeStatus = escapeHtml(item.status || '');
-
-                rowsHtml += `
+    <!-- Table Container -->
+    <div class="glass-card p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle mb-0" style="background: transparent;">
+                <thead>
+                    <tr class="border-bottom border-secondary text-muted small text-uppercase">
+                        <th class="text-center py-3" style="width: 70px;">รูปภาพ</th>
+                        <th class="py-3">รหัสครุภัณฑ์</th>
+                        <th class="py-3">ชื่อรายการ</th>
+                        <th class="py-3">หมวดหมู่</th>
+                        <th class="py-3">แผนก/หน่วยงาน</th>
+                        <th class="py-3">สถานที่</th>
+                        <th class="text-center py-3">สถานะ</th>
+                        <th class="text-end py-3">ราคา (บาท)</th>
+                        <th class="text-center py-3" style="width: 90px;">QR Code</th>
+                    </tr>
+                </thead>
+                <tbody id="assetsTableBody">
                     <tr>
-                        <td>${imgThumb}</td>
-                        <td class="fw-bold">${safeCode || '-'}</td>
-                        <td>${safeName || '-'}</td>
-                        <td>${safeCat || '-'}</td>
-                        <td>${safeDept || '-'}</td>
-                        <td><span class="badge ${badgeClass}">${safeStatus || 'ใช้งานปกติ'}</span></td>
-                        <td>${priceVal.toLocaleString()}</td>
-                        <td>
-                            ${item.qr_code_path ? `<img src="${item.qr_code_path}" width="35" height="35" class="rounded border">` : '-'}
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <div class="spinner-border spinner-border-sm text-warning me-2" role="status"></div>
+                            กำลังโหลดข้อมูล...
                         </td>
-                        <td class="text-center">
-                            <button class="btn btn-sm btn-outline-info me-1" onclick="editAsset(${item.id}, '${safeCode}', '${safeName}', '${safeCat}', '${safeDept}', '${safeStatus}', ${priceVal})">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAsset(${item.id})">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let rawAssetsData = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // ดึงค่าคำค้นหาจาก URL ถ้ามาจากการสแกน QR Code (เช่น ?search= dasdsd)
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchQuery = urlParams.get('search');
+        if (searchQuery) {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.value = searchQuery;
+        }
+
+        fetchAssetsData();
+    });
+
+    async function fetchAssetsData() {
+        const tbody = document.getElementById('assetsTableBody');
+        try {
+            const response = await fetch('/api/v1/assets/');
+            if (!response.ok) {
+                throw new Error(`HTTP Error! Status: ${response.status}`);
+            }
+            rawAssetsData = await response.json();
+            
+            // ถ้ามีคำค้นหาค้างในช่อง ค้นหาอัตโนมัติทันที
+            filterAssets();
+        } catch (error) {
+            console.error('Error fetching assets:', error);
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-danger">
+                            <i class="bi bi-exclamation-triangle-fill fs-3 d-block mb-2"></i>
+                            เกิดข้อผิดพลาดในการเชื่อมต่อข้อมูลครุภัณฑ์
                         </td>
                     </tr>
                 `;
-            });
-            tbody.innerHTML = rowsHtml;
-
-        } catch (err) {
-            console.error('Error loading assets:', err);
-            tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูลจากเซิร์ฟเวอร์</td></tr>`;
+            }
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        loadAssets();
+    function renderAssetsTable(data) {
+        const tbody = document.getElementById('assetsTableBody');
+        const countEl = document.getElementById('assetCount');
+        
+        if (!tbody) return;
+        if (countEl) countEl.textContent = data.length;
 
-        document.getElementById('btn-add-asset')?.addEventListener('click', () => {
-            resetForm();
-            const modal = getModal();
-            if (modal) modal.show();
+        if (!data || data.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                        ไม่พบรายการครุภัณฑ์ที่ตรงตามเงื่อนไข
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+        data.forEach(item => {
+            // เลือกสี Badge ตามสถานะ
+            let badgeClass = 'bg-secondary';
+            const status = item.status || '-';
+            if (status.includes('ปกติ') || status.includes('ใช้งานได้')) badgeClass = 'bg-success bg-opacity-75';
+            else if (status.includes('ส่งซ่อม') || status.includes('แจ้งซ่อม')) badgeClass = 'bg-warning text-dark';
+            else if (status.includes('เบิก') || status.includes('ชำรุด')) badgeClass = 'bg-danger';
+
+            // จัดการรูปภาพสำรองเมื่อไม่มีรูป
+            const imgSrc = item.image_path ? item.image_path : '/static/img/logo.png';
+
+            // ฟอร์แมตตัวเลขราคา
+            const priceFormatted = item.price ? Number(item.price).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+
+            // เส้นทางไฟล์ QR Code
+            const qrPath = item.qr_code_path ? item.qr_code_path : '#';
+
+            html += `
+                <tr>
+                    <td class="text-center">
+                        <img src="${imgSrc}" alt="${item.name || ''}" class="rounded-2 shadow-sm" style="width: 42px; height: 42px; object-fit: cover; background: rgba(255,255,255,0.05);" onerror="this.src='/static/img/logo.png'">
+                    </td>
+                    <td class="fw-bold text-warning">${item.asset_code || '-'}</td>
+                    <td class="fw-semibold text-white">${item.name || '-'}</td>
+                    <td><span class="badge bg-dark border border-secondary text-light">${item.category || '-'}</span></td>
+                    <td>${item.department || '-'}</td>
+                    <td>${item.location || '-'}</td>
+                    <td class="text-center"><span class="badge ${badgeClass} px-2 py-1 rounded-pill">${status}</span></td>
+                    <td class="text-end fw-semibold text-white">${priceFormatted}</td>
+                    <td class="text-center">
+                        ${qrPath !== '#' ? `
+                            <a href="${qrPath}" target="_blank" class="btn btn-sm btn-outline-warning rounded-2" title="ดู QR Code">
+                                <i class="bi bi-qr-code"></i>
+                            </a>
+                        ` : '-'}
+                    </td>
+                </tr>
+            `;
         });
 
-        document.getElementById('btn-close-modal')?.addEventListener('click', closeModal);
-        document.getElementById('btn-close-modal-x')?.addEventListener('click', closeModal);
+        tbody.innerHTML = html;
+    }
 
-        const form = document.getElementById('assetForm');
-        if (form) {
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                
-                const id = document.getElementById('assetId').value;
-                const payload = {
-                    asset_code: document.getElementById('assetCode').value,
-                    name: document.getElementById('assetName').value,
-                    category: document.getElementById('assetCategory').value,
-                    department: document.getElementById('assetDepartment').value,
-                    status: document.getElementById('assetStatus').value,
-                    price: parseFloat(document.getElementById('assetPrice').value) || 0
-                };
+    function filterAssets() {
+        const searchValue = document.getElementById('searchInput').value.toLowerCase().trim();
+        const statusValue = document.getElementById('statusFilter').value;
 
-                const method = id ? 'PUT' : 'POST';
-                const url = id ? `${API_URL}/${id}` : API_URL;
+        const filtered = rawAssetsData.filter(item => {
+            const matchesSearch = 
+                (item.asset_code && item.asset_code.toLowerCase().includes(searchValue)) ||
+                (item.name && item.name.toLowerCase().includes(searchValue)) ||
+                (item.category && item.category.toLowerCase().includes(searchValue)) ||
+                (item.department && item.department.toLowerCase().includes(searchValue)) ||
+                (item.location && item.location.toLowerCase().includes(searchValue));
 
-                const btnSave = document.getElementById('btnSaveAsset');
-                btnSave.disabled = true;
-                btnSave.innerText = 'กำลังบันทึก...';
+            const matchesStatus = !statusValue || (item.status && item.status.includes(statusValue));
 
-                try {
-                    const res = await fetch(url, {
-                        method: method,
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
+            return matchesSearch && matchesStatus;
+        });
 
-                    if (res.ok) {
-                        const savedAsset = await res.json();
-                        const targetId = id || savedAsset.id;
+        renderAssetsTable(filtered);
+    }
 
-                        const imageFile = document.getElementById('assetImage').files[0];
-                        if (imageFile && targetId) {
-                            btnSave.innerText = 'กำลังอัปโหลดรูปภาพ...';
-                            const formData = new FormData();
-                            formData.append('file', imageFile);
-
-                            await fetch(`${API_URL}/${targetId}/upload-image`, {
-                                method: 'POST',
-                                body: formData
-                            });
-                        }
-
-                        closeModal();
-                        resetForm();
-                        await loadAssets();
-                    } else {
-                        const errorData = await res.json().catch(() => ({}));
-                        let detail = 'ไม่สามารถบันทึกได้';
-                        if (typeof errorData.detail === 'string') {
-                            detail = errorData.detail;
-                        } else if (Array.isArray(errorData.detail)) {
-                            detail = errorData.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join('\n');
-                        }
-                        alert('เกิดข้อผิดพลาด: ' + detail);
-                    }
-                } catch (err) {
-                    console.error('Fetch error:', err);
-                    alert('ไม่สามารถเชื่อมต่อ Server ได้');
-                } finally {
-                    btnSave.disabled = false;
-                    btnSave.innerText = 'บันทึกข้อมูล';
-                }
-            });
-        }
-    });
-})();
+    function openAddAssetModal() {
+        alert('เตรียมเปิด Modal เพิ่มครุภัณฑ์ใหม่');
+    }
 </script>
 {% endblock %}
