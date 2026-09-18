@@ -5,13 +5,17 @@
 
 {% block content %}
 <style>
-    /* บังคับ z-index ให้ป๊อปอัปอยู่เหนือแผ่นดำเสมอ */
+    /* ปิดฉากดำเดิมของ Bootstrap ทิ้งเพื่อแก้ปัญหาโดนบัง */
     .modal-backdrop {
-        z-index: 1040 !important;
+        display: none !important;
     }
+
+    /* ใส่ฉากดำโปร่งแสงที่ตัว Modal เอง และดึง z-index ขึ้นมาด้านบนสุด */
     #req-modal {
-        z-index: 1060 !important;
+        background-color: rgba(0, 0, 0, 0.75) !important;
+        z-index: 99999 !important;
     }
+
     #req-modal .modal-content {
         background-color: #111827 !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -57,8 +61,8 @@
     </div>
 </div>
 
-<!-- Custom Modal ฟอร์มเบิกของ -->
-<div class="modal fade" id="req-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<!-- Custom Modal ฟอร์มเบิกของ (ปิด backdrop เดิมด้วย data-bs-backdrop="false") -->
+<div class="modal fade" id="req-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header border-bottom border-secondary border-opacity-25 pb-3">
@@ -108,12 +112,6 @@
     const API_URL = '/api/v1';
 
     document.addEventListener('DOMContentLoaded', () => {
-        // ย้าย Modal ไปไว้ใต้อวัยวะหลัก (body) ป้องกันปัญหาเงาดำทับ
-        const modalEl = document.getElementById('req-modal');
-        if (modalEl && modalEl.parentElement !== document.body) {
-            document.body.appendChild(modalEl);
-        }
-
         loadRequisitions();
 
         const btnOpen = document.getElementById('btn-open-modal');
