@@ -12,14 +12,18 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 
 # แยกการตั้งค่า Engine ระหว่าง SQLite ( Local ) และ PostgreSQL ( Cloud )
 if "sqlite" in DATABASE_URL:
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    engine = create_engine(
+        DATABASE_URL, 
+        connect_args={"check_same_thread": False}
+    )
 else:
     engine = create_engine(
         DATABASE_URL,
-        pool_pre_ping=True,   # ตรวจสอบความพร้อมของ Connection ก่อนยิง Query
-        pool_recycle=300,     # คืน Connection ทุก 5 นาที ป้องกันการค้าง
-        pool_size=5,          # จำกัดจำนวน Connection หลักไว้ที่ 5
-        max_overflow=10       # สำรอง Connection เพิ่มชั่วคราวได้อีก 10
+        pool_pre_ping=True,                     # ตรวจสอบสถานะการเชื่อมต่อก่อนใช้งาน
+        pool_recycle=300,                       # คืน connection ทุกๆ 5 นาที ป้องกันการค้าง
+        pool_size=5,                            # จำนวน connection หลักใน pool
+        max_overflow=10,                        # connection สำรอง
+        connect_args={"sslmode": "require"}     # บังคับ SSL ป้องกันค้างขั้นตอน Handshake
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
