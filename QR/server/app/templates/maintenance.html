@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}ระบบแจ้งซ่อม - Asset Management{% endblock %}
-{% block page_title %}ระบบแจ้งซ่อม / บำรุงรักษา{% endblock %}
+{% block title %}ระบบแจ้งซ่อม - Asset Management RPG{% endblock %}
+{% block page_title %}ระบบแจ้งซ่อม / บำรุงรักษา (RPG Quests){% endblock %}
 
 {% block extra_css %}
 <!-- SweetAlert2 CSS -->
@@ -10,7 +10,7 @@
     div.swal2-popup.swal-dark {
         background-color: #0d1424 !important;
         color: #f8fafc !important;
-        border: 1px solid rgba(193, 154, 107, 0.3) !important;
+        border: 1px solid rgba(245, 158, 11, 0.4) !important;
         border-radius: 1.25rem !important;
         backdrop-filter: blur(20px);
         box-shadow: 0 20px 50px rgba(0,0,0,0.8);
@@ -24,20 +24,21 @@
         color: #94a3b8 !important;
     }
 
+    /* Badges Style */
     .status-badge-pending {
-        background: rgba(234, 179, 8, 0.12) !important;
+        background: rgba(234, 179, 8, 0.15) !important;
         color: #facc15 !important;
-        border: 1px solid rgba(234, 179, 8, 0.3);
+        border: 1px solid rgba(234, 179, 8, 0.4);
     }
     .status-badge-progress {
-        background: rgba(6, 182, 212, 0.12) !important;
+        background: rgba(6, 182, 212, 0.15) !important;
         color: #22d3ee !important;
-        border: 1px solid rgba(6, 182, 212, 0.3);
+        border: 1px solid rgba(6, 182, 212, 0.4);
     }
     .status-badge-completed {
-        background: rgba(34, 197, 94, 0.12) !important;
+        background: rgba(34, 197, 94, 0.15) !important;
         color: #4ade80 !important;
-        border: 1px solid rgba(34, 197, 94, 0.3);
+        border: 1px solid rgba(34, 197, 94, 0.4);
     }
 </style>
 {% endblock %}
@@ -48,7 +49,7 @@
     <div class="col-md-3">
         <div class="glass-card p-3.5 d-flex flex-row align-items-center justify-content-between">
             <div>
-                <small class="text-secondary d-block fw-medium mb-1">รอดำเนินการ</small>
+                <small class="text-secondary d-block fw-medium mb-1">⚔️ เควสใหม่ / รอดำเนินการ</small>
                 <span class="fs-2 fw-bold text-warning" id="countPending">0</span>
             </div>
             <div class="p-3 rounded-4" style="background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.2);">
@@ -59,7 +60,7 @@
     <div class="col-md-3">
         <div class="glass-card p-3.5 d-flex flex-row align-items-center justify-content-between">
             <div>
-                <small class="text-secondary d-block fw-medium mb-1">กำลังซ่อม</small>
+                <small class="text-secondary d-block fw-medium mb-1">🛠️ กำลังทำเควส / กำลังซ่อม</small>
                 <span class="fs-2 fw-bold text-info" id="countProgress">0</span>
             </div>
             <div class="p-3 rounded-4" style="background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.2);">
@@ -70,7 +71,7 @@
     <div class="col-md-3">
         <div class="glass-card p-3.5 d-flex flex-row align-items-center justify-content-between">
             <div>
-                <small class="text-secondary d-block fw-medium mb-1">ซ่อมเสร็จแล้ว</small>
+                <small class="text-secondary d-block fw-medium mb-1">🏆 เควสสำเร็จ / ซ่อมเสร็จแล้ว</small>
                 <span class="fs-2 fw-bold text-success" id="countCompleted">0</span>
             </div>
             <div class="p-3 rounded-4" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2);">
@@ -81,7 +82,7 @@
     <div class="col-md-3">
         <div class="glass-card p-3.5 d-flex flex-row align-items-center justify-content-between">
             <div>
-                <small class="text-secondary d-block fw-medium mb-1">รายการทั้งหมด</small>
+                <small class="text-secondary d-block fw-medium mb-1">📜 ภารกิจทั้งหมด</small>
                 <span class="fs-2 fw-bold" style="color: #FFE082;" id="countTotal">0</span>
             </div>
             <div class="p-3 rounded-4" style="background: rgba(193, 154, 107, 0.15); color: #FFE082; border: 1px solid rgba(193, 154, 107, 0.2);">
@@ -95,8 +96,8 @@
 <div class="glass-card p-4">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
-            <h5 class="fw-bold mb-1 text-white"><i class="bi bi-wrench-adjustable me-2 text-warning"></i>รายการแจ้งซ่อมทั้งหมด</h5>
-            <p class="text-secondary small mb-0">ติดตามและจัดการสถานะการซ่อมแซมครุภัณฑ์ในระบบแบบ Real-time</p>
+            <h5 class="fw-bold mb-1 text-white"><i class="bi bi-wrench-adjustable me-2 text-warning"></i>รายการแจ้งซ่อม / ภารกิจเควสทั้งหมด</h5>
+            <p class="text-secondary small mb-0">ติดตาม รับเควส และจัดการสถานะการซ่อมแซมครุภัณฑ์แบบ Real-time</p>
         </div>
         <div class="d-flex gap-2">
             <div class="input-group style-search">
@@ -115,9 +116,9 @@
                     <th class="py-3">อาการชำรุด / เหตุผล</th>
                     <th class="py-3">ผู้แจ้งซ่อม</th>
                     <th class="py-3">ความเร่งด่วน</th>
-                    <th class="py-3">สถานะ</th>
+                    <th class="py-3">สถานะเควส</th>
                     <th class="py-3">วันที่แจ้ง</th>
-                    <th class="py-3 text-end">จัดการ</th>
+                    <th class="py-3 text-end">จัดการเควส</th>
                 </tr>
             </thead>
             <tbody id="maintenanceTableBody">
@@ -133,20 +134,59 @@
 <script>
 let rawMaintenanceData = [];
 
+// ระบบเสียงเอฟเฟกต์ RPG สำหรับการรับเควสและส่งเควส
+function playRPGSound(type) {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (type === 'accept') {
+            const notes = [440, 554.37, 659.25, 880];
+            notes.forEach((freq, idx) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(ctx.currentTime + idx * 0.08);
+                osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
+            });
+        } else if (type === 'complete') {
+            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+            notes.forEach((freq, idx) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.1);
+                gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.1 + 0.4);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(ctx.currentTime + idx * 0.1);
+                osc.stop(ctx.currentTime + idx * 0.1 + 0.4);
+            });
+        }
+    } catch (e) {
+        console.log("Audio API not supported or blocked");
+    }
+}
+
 async function loadMaintenanceData() {
     try {
         const res = await fetch('/api/v1/maintenance/');
         if (!res.ok) return;
         rawMaintenanceData = await res.json();
 
+        // คำนวณยอด KPI
         document.getElementById('countTotal').innerText = rawMaintenanceData.length;
-        document.getElementById('countPending').innerText = rawMaintenanceData.filter(i => i.status === 'Pending').length;
-        document.getElementById('countProgress').innerText = rawMaintenanceData.filter(i => i.status === 'In Progress').length;
-        document.getElementById('countCompleted').innerText = rawMaintenanceData.filter(i => i.status === 'Completed').length;
+        document.getElementById('countPending').innerText = rawMaintenanceData.filter(i => i.status === 'Pending' || i.status === 'รอดำเนินการ').length;
+        document.getElementById('countProgress').innerText = rawMaintenanceData.filter(i => i.status === 'In Progress' || i.status === 'กำลังซ่อม').length;
+        document.getElementById('countCompleted').innerText = rawMaintenanceData.filter(i => i.status === 'Completed' || i.status === 'ซ่อมเสร็จแล้ว').length;
 
         renderTable(rawMaintenanceData);
     } catch (err) {
-        console.error("Error loading maintenance:", err);
+        console.error("Error loading maintenance data:", err);
     }
 }
 
@@ -154,7 +194,7 @@ function renderTable(data) {
     const tbody = document.getElementById('maintenanceTableBody');
     tbody.innerHTML = '';
 
-    if (data.length === 0) {
+    if (!data || data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-secondary">ไม่พบข้อมูลการแจ้งซ่อมในระบบ</td></tr>`;
         return;
     }
@@ -165,22 +205,43 @@ function renderTable(data) {
             hour: '2-digit', minute: '2-digit'
         }) : '-';
 
-        let statusBadge = `
-            <span class="badge status-badge-pending px-3 py-2 rounded-pill">
-                <i class="bi bi-clock-history me-1"></i> รอดำเนินการ
-            </span>`;
-        
-        if (item.status === 'Completed') {
+        // ปรับแต่ง Badge สถานะเควส
+        let statusBadge = '';
+        let actionButtons = '';
+
+        if (item.status === 'Completed' || item.status === 'ซ่อมเสร็จแล้ว') {
             statusBadge = `
                 <span class="badge status-badge-completed px-3 py-2 rounded-pill">
-                    <i class="bi bi-check-circle-fill me-1"></i> ซ่อมเสร็จแล้ว
+                    <i class="bi bi-check-circle-fill me-1"></i> สำเร็จแล้ว
                 </span>`;
-        } else if (item.status === 'In Progress') {
+            actionButtons = `<span class="badge bg-success bg-opacity-25 text-success px-3 py-1.5 rounded-pill" title="ภารกิจเสร็จสิ้น"><i class="bi bi-shield-check me-1"></i> เควสสำเร็จ</span>`;
+
+        } else if (item.status === 'In Progress' || item.status === 'กำลังซ่อม') {
             statusBadge = `
                 <span class="badge status-badge-progress px-3 py-2 rounded-pill">
-                    <i class="bi bi-tools me-1"></i> กำลังซ่อม
+                    <i class="bi bi-tools me-1"></i> กำลังดำเนินการ
                 </span>`;
+            actionButtons = `
+                <button class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 px-3 rounded-pill shadow-sm" onclick="confirmComplete(${item.id}, '${item.asset_id}')">
+                    <i class="bi bi-check2-circle"></i> ซ่อมเสร็จแล้ว
+                </button>`;
+
+        } else { // Pending / รอดำเนินการ
+            statusBadge = `
+                <span class="badge status-badge-pending px-3 py-2 rounded-pill">
+                    <i class="bi bi-hourglass-split me-1"></i> เควสใหม่
+                </span>`;
+            actionButtons = `
+                <button class="btn btn-sm btn-warning d-inline-flex align-items-center gap-1 px-3 rounded-pill shadow-sm fw-bold text-dark" onclick="acceptQuest(${item.id}, '${item.asset_id}')">
+                    ⚔️ รับเควส
+                </button>`;
         }
+
+        // ความเร่งด่วน
+        const urgency = item.urgency || 'Normal';
+        let urgencyBadgeClass = 'bg-secondary bg-opacity-25 text-light';
+        if (urgency === 'High') urgencyBadgeClass = 'bg-warning bg-opacity-25 text-warning border border-warning';
+        if (urgency === 'Critical') urgencyBadgeClass = 'bg-danger bg-opacity-25 text-danger border border-danger';
 
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
@@ -188,40 +249,77 @@ function renderTable(data) {
             <td class="fw-bold" style="color: #FFE082;">#${item.asset_id}</td>
             <td><span class="text-light fw-medium">${item.issue_description || '-'}</span></td>
             <td><span class="badge bg-dark border border-secondary text-light px-3 py-1.5 rounded-pill" style="font-weight: 500;">${item.reporter_name || 'ไม่ระบุชื่อ'}</span></td>
-            <td><span class="badge bg-secondary bg-opacity-25 text-light px-2.5 py-1 rounded-3">${item.urgency || 'Normal'}</span></td>
+            <td><span class="badge ${urgencyBadgeClass} px-2.5 py-1 rounded-3">${urgency}</span></td>
             <td>${statusBadge}</td>
             <td class="text-secondary small">${dateStr}</td>
-            <td class="text-end">
-                ${item.status !== 'Completed' ? `
-                    <button class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1 px-3 rounded-pill" onclick="confirmComplete(${item.id}, ${item.asset_id})">
-                        <i class="bi bi-check2-circle"></i> ซ่อมเสร็จแล้ว
-                    </button>
-                ` : '<i class="bi bi-check-lg text-success fs-5" title="ซ่อมเสร็จสิ้น"></i>'}
-            </td>
+            <td class="text-end">${actionButtons}</td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-document.getElementById('searchInput').addEventListener('input', function(e) {
-    const term = e.target.value.toLowerCase();
-    const filtered = rawMaintenanceData.filter(item => 
-        (item.issue_description && item.issue_description.toLowerCase().includes(term)) ||
-        (item.reporter_name && item.reporter_name.toLowerCase().includes(term)) ||
-        (item.asset_id && item.asset_id.toString().includes(term))
-    );
-    renderTable(filtered);
-});
+// ⚔️ ฟังก์ชันรับเควส (Pending -> In Progress)
+function acceptQuest(id, assetId) {
+    Swal.fire({
+        title: '⚔️ ยืนยันการรับเควสซ่อม?',
+        text: `คุณกำลังตอบรับภารกิจซ่อมแซมครุภัณฑ์ #${assetId}`,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#475569',
+        confirmButtonText: '⚔️ ตกลง รับเควส!',
+        cancelButtonText: 'ยกเลิก',
+        customClass: { popup: 'swal-dark' }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch(`/api/v1/maintenance/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'In Progress' })
+                });
 
+                if (res.ok) {
+                    playRPGSound('accept');
+                    Swal.fire({
+                        title: 'รับเควสสำเร็จ!',
+                        text: 'เริ่มดำเนินการซ่อมแซมได้เลย!',
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false,
+                        customClass: { popup: 'swal-dark' }
+                    });
+                    loadMaintenanceData();
+                } else {
+                    Swal.fire({
+                        title: 'เกิดข้อผิดพลาด!',
+                        text: 'ไม่สามารถรับเควสได้ กรุณาลองใหม่อีกครั้ง',
+                        icon: 'error',
+                        customClass: { popup: 'swal-dark' }
+                    });
+                }
+            } catch (e) {
+                Swal.fire({
+                    title: 'ข้อผิดพลาดเครือข่าย!',
+                    text: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้',
+                    icon: 'error',
+                    customClass: { popup: 'swal-dark' }
+                });
+            }
+        }
+    });
+}
+
+// ✅ ฟังก์ชันส่งเควส/ซ่อมเสร็จ (In Progress -> Completed)
 function confirmComplete(id, assetId) {
     Swal.fire({
-        title: 'ยืนยันการซ่อมเสร็จสิ้น?',
+        title: '🏆 ยืนยันการซ่อมเสร็จสิ้น?',
         text: `คุณกำลังเปลี่ยนสถานะรายการแจ้งซ่อมครุภัณฑ์ #${assetId} เป็น "ซ่อมเสร็จแล้ว"`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#10b981',
         cancelButtonColor: '#475569',
-        confirmButtonText: '<i class="bi bi-check-lg me-1"></i> ยืนยันการซ่อมเสร็จ',
+        confirmButtonText: '<i class="bi bi-check-lg me-1"></i> ยืนยันซ่อมเสร็จ',
         cancelButtonText: 'ยกเลิก',
         customClass: { popup: 'swal-dark' }
     }).then(async (result) => {
@@ -234,8 +332,9 @@ function confirmComplete(id, assetId) {
                 });
 
                 if (res.ok) {
+                    playRPGSound('complete');
                     Swal.fire({
-                        title: 'บันทึกสำเร็จ!',
+                        title: 'ภารกิจเสร็จสิ้น!',
                         text: 'อัปเดตสถานะการซ่อมเรียบร้อยแล้ว',
                         icon: 'success',
                         timer: 1500,
@@ -263,6 +362,21 @@ function confirmComplete(id, assetId) {
     });
 }
 
-document.addEventListener('DOMContentLoaded', loadMaintenanceData);
+// ค้นหาข้อมูล real-time จากช่อง Search
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    const term = e.target.value.toLowerCase();
+    const filtered = rawMaintenanceData.filter(item => 
+        (item.issue_description && item.issue_description.toLowerCase().includes(term)) ||
+        (item.reporter_name && item.reporter_name.toLowerCase().includes(term)) ||
+        (item.asset_id && item.asset_id.toString().includes(term))
+    );
+    renderTable(filtered);
+});
+
+// เริ่มต้นโหลดข้อมูล และตั้งค่าดึงข้อมูลอัตโนมัติทุกๆ 8 วินาที
+document.addEventListener('DOMContentLoaded', () => {
+    loadMaintenanceData();
+    setInterval(loadMaintenanceData, 8000);
+});
 </script>
 {% endblock %}

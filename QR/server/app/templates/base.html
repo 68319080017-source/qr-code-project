@@ -313,6 +313,21 @@
         }
         .modal-header, .modal-footer { border-color: var(--border-color) !important; }
 
+        /* Quest Dropdown Styling Integration */
+        .quest-dropdown-menu {
+            background: var(--bg-card) !important;
+            backdrop-filter: blur(25px);
+            border: 1px solid #f59e0b !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        .quest-item {
+            transition: all 0.2s ease;
+        }
+        .quest-item:hover {
+            background-color: rgba(245, 158, 11, 0.1) !important;
+        }
+
         /* Html5QrcodeScanner Dark/Light Theme Override */
         #reader button {
             background-color: #C19A6B !important;
@@ -375,6 +390,41 @@
                 <div class="modal-body">
                     <div id="reader" style="width: 100%; min-height: 250px; border-radius: 12px; overflow: hidden; background: #000;"></div>
                     <div id="scannerResult" class="mt-3 text-info small">กำลังโหลดระบบกล้อง...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ⚡ MODAL ป๊อปอัปแจ้งเควสสไตล์ RPG / OPEN-WORLD -->
+    <div class="modal fade" id="questModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-white rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #1e1b4b 0%, #0d1424 100%); border: 2px solid #f59e0b; box-shadow: 0 0 30px rgba(245, 158, 11, 0.3);">
+                <div class="p-3 text-center border-bottom border-warning border-opacity-25" style="background: rgba(245, 158, 11, 0.15);">
+                    <span class="badge bg-warning text-dark fw-bold px-3 py-1 rounded-pill mb-1" style="font-size: 10px; letter-spacing: 1px;">⚡ NEW QUEST DETECTED!</span>
+                    <h5 class="fw-bold text-warning mb-0"><i class="fa-solid fa-scroll me-2"></i>ภารกิจแจ้งซ่อมใหม่</h5>
+                </div>
+                <div class="modal-body p-4 space-y-3" style="font-size: 14px;">
+                    <div class="d-flex justify-content-between align-items-center bg-dark bg-opacity-60 p-3 rounded-3 border border-secondary mb-3">
+                        <div>
+                            <span class="text-secondary d-block" style="font-size: 11px;">รหัสครุภัณฑ์ Target:</span>
+                            <span class="fw-bold text-warning fs-5" id="questAssetCode">AST-0000</span>
+                        </div>
+                        <div id="questUrgencyBadge"></div>
+                    </div>
+                    <div class="bg-dark bg-opacity-40 p-3 rounded-3 border border-secondary mb-3">
+                        <p class="mb-1 text-secondary" style="font-size: 11px;"><i class="fa-solid fa-bullseye me-1 text-danger"></i>เป้าหมายภารกิจ (อาการชำรุด):</p>
+                        <p class="fw-bold text-white mb-0" id="questDescription">-</p>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center text-secondary px-1" style="font-size: 12px;">
+                        <span><i class="fa-solid fa-user me-1 text-info"></i>ผู้แจ้ง: <strong class="text-white" id="questReporter">-</strong></span>
+                        <span><i class="fa-solid fa-clock me-1 text-warning"></i>เวลา: <span id="questTime" class="text-white">-</span></span>
+                    </div>
+                </div>
+                <div class="p-3 bg-dark bg-opacity-80 d-flex justify-content-end gap-2 border-top border-secondary">
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill" data-bs-dismiss="modal">ไว้ทีหลัง</button>
+                    <button type="button" id="btnAcceptQuest" onclick="acceptCurrentQuest()" class="btn btn-warning btn-sm fw-bold px-4 rounded-pill shadow">
+                        ⚔️ รับเควส (Accept Quest)
+                    </button>
                 </div>
             </div>
         </div>
@@ -450,6 +500,27 @@
                 <div class="d-flex justify-content-end align-items-center mb-4 pb-3 border-bottom" style="border-color: var(--topbar-border) !important;">
                     
                     <div class="d-flex align-items-center gap-2">
+
+                        <!-- ⚔️ ปุ่มเควส / ภารกิจ (RPG QUEST NOTIFICATION WIDGET) -->
+                        <div class="position-relative">
+                            <button id="questBtn" onclick="toggleQuestDropdown()" class="btn btn-outline-warning rounded-pill px-3 py-1.5 style-small d-flex align-items-center gap-2 shadow-sm" style="font-size: 0.85rem;">
+                                <i class="fa-solid fa-scroll text-warning"></i>
+                                <span class="fw-bold">เควส/ภารกิจ</span>
+                                <span id="questBadge" class="badge rounded-pill bg-danger border border-light ms-1" style="display: none; font-size: 10px;">0</span>
+                            </button>
+
+                            <!-- Dropdown รายการเควสรอดำเนินการ -->
+                            <div id="questDropdown" class="dropdown-menu dropdown-menu-end p-3 rounded-4 quest-dropdown-menu text-white" style="display: none; width: 330px; right: 0; top: 45px; z-index: 1050; position: absolute;">
+                                <div class="d-flex justify-content-between align-items-center pb-2 mb-2 border-bottom border-secondary">
+                                    <span class="fw-bold text-warning" style="font-size: 14px;"><i class="fa-solid fa-crosshairs me-1"></i> เควสแจ้งซ่อมใหม่</span>
+                                    <span class="badge bg-warning text-dark" id="questCountHeader">0 เควส</span>
+                                </div>
+                                <div id="questList" class="space-y-2 overflow-auto" style="max-height: 260px;">
+                                    <p class="text-muted text-center py-3 mb-0" style="font-size: 12px;">ไม่มีเควสใหม่ในขณะนี้</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- ปุ่มสแกน QR -->
                         <button class="btn btn-outline-warning rounded-pill px-3 py-1.5 style-small d-flex align-items-center gap-2" onclick="openQRScanner()" style="font-size: 0.85rem;">
                             <i class="bi bi-qr-code-scan"></i> สแกน QR
@@ -522,6 +593,10 @@
                     clearQRScanner();
                 });
             }
+
+            // เริ่มระบบดึงเควสแบบ Real-time
+            checkPendingQuests();
+            setInterval(checkPendingQuests, 8000);
         });
 
         // --- THEME TOGGLE ENGINE ---
@@ -725,74 +800,169 @@
             }
         }
 
-        // --- WEBCAM QR SCANNER ENGINE ---
-        let html5QrcodeScannerInstance = null;
+        // --- 🎮 REAL-TIME RPG QUEST SYSTEM ENGINE ---
+        let activeQuestId = null;
+        let knownQuestIds = new Set();
+        let isFirstQuestLoad = true;
 
-        function openQRScanner() {
-            const resultDiv = document.getElementById('scannerResult');
-            
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                if (resultDiv) {
-                    resultDiv.innerHTML = "<span class='text-danger'>เบราว์เซอร์ไม่อนุญาตเปิดกล้องเนื่องจากไม่ใช่ HTTPS<br>กรุณาใช้งานผ่าน https:// หรือ localhost</span>";
+        function playRPGSound(type) {
+            if (localStorage.getItem('sound_fx_enabled') === 'false') return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (type === 'quest_new') {
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
+                        gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.12);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.12 + 0.25);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(ctx.currentTime + idx * 0.12);
+                        osc.stop(ctx.currentTime + idx * 0.12 + 0.25);
+                    });
+                } else if (type === 'quest_accept') {
+                    const notes = [440, 554.37, 659.25, 880];
+                    notes.forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+                        gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.3);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(ctx.currentTime + idx * 0.08);
+                        osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        async function checkPendingQuests() {
+            try {
+                const res = await fetch('/api/v1/maintenance/');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const pendingQuests = data.filter(i => i.status === 'Pending' || i.status === 'รอดำเนินการ');
+                updateQuestBadge(pendingQuests);
+
+                let hasNew = false;
+                let latestQuest = null;
+
+                pendingQuests.forEach(q => {
+                    if (!knownQuestIds.has(q.id)) {
+                        knownQuestIds.add(q.id);
+                        hasNew = true;
+                        latestQuest = q;
+                    }
+                });
+
+                if (!isFirstQuestLoad && hasNew && latestQuest) {
+                    playRPGSound('quest_new');
+                    triggerQuestModal(latestQuest);
+                }
+                isFirstQuestLoad = false;
+            } catch (err) {}
+        }
+
+        function updateQuestBadge(quests) {
+            const badge = document.getElementById('questBadge');
+            const pendingBadgeSidebar = document.getElementById('pendingBadge');
+            const headerCount = document.getElementById('questCountHeader');
+            const list = document.getElementById('questList');
+
+            if (quests.length > 0) {
+                if (badge) {
+                    badge.innerText = quests.length;
+                    badge.style.display = 'inline-block';
+                }
+                if (pendingBadgeSidebar) {
+                    pendingBadgeSidebar.innerText = quests.length;
+                    pendingBadgeSidebar.classList.remove('d-none');
+                }
+                if (headerCount) headerCount.innerText = `${quests.length} เควส`;
+                if (list) {
+                    list.innerHTML = quests.map(q => `
+                        <div class="p-2 rounded bg-dark border border-secondary mb-2 d-flex justify-content-between align-items-center quest-item" style="font-size: 12px;">
+                            <div>
+                                <span class="fw-bold text-warning">#${q.asset_id}</span>
+                                <p class="mb-0 text-secondary text-truncate" style="max-width: 170px;">${q.issue_description || 'แจ้งซ่อม'}</p>
+                            </div>
+                            <button onclick="triggerQuestModalById(${q.id})" class="btn btn-sm btn-outline-warning py-0 px-2" style="font-size: 11px;">⚔️ รับ</button>
+                        </div>
+                    `).join('');
                 }
             } else {
-                if (resultDiv) resultDiv.innerText = "กำลังเริ่มต้นกล้อง... ส่อง QR Code ได้เลย";
+                if (badge) badge.style.display = 'none';
+                if (pendingBadgeSidebar) pendingBadgeSidebar.classList.add('d-none');
+                if (headerCount) headerCount.innerText = '0 เควส';
+                if (list) list.innerHTML = `<p class="text-muted text-center py-3 mb-0" style="font-size: 12px;">ไม่มีเควสใหม่ในขณะนี้</p>`;
             }
+        }
 
-            const modalEl = document.getElementById('qrScannerModal');
-            if (!modalEl) return;
-            const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-            modal.show();
+        function triggerQuestModal(q) {
+            activeQuestId = q.id;
+            document.getElementById('questAssetCode').innerText = `#${q.asset_id}`;
+            document.getElementById('questDescription').innerText = q.issue_description || 'ไม่มีรายละเอียด';
+            document.getElementById('questReporter').innerText = q.reporter_name || 'ไม่ระบุชื่อ';
+            document.getElementById('questTime').innerText = q.created_at ? new Date(q.created_at).toLocaleString('th-TH') : 'เมื่อครู่นี้';
 
-            clearQRScanner();
+            const u = q.urgency || 'Normal';
+            let b = 'bg-info text-dark';
+            if (u === 'High') b = 'bg-warning text-dark';
+            if (u === 'Critical') b = 'bg-danger text-white';
+            document.getElementById('questUrgencyBadge').innerHTML = `<span class="badge ${b} px-2 py-1">${u}</span>`;
 
-            setTimeout(() => {
-                try {
-                    html5QrcodeScannerInstance = new Html5QrcodeScanner(
-                        "reader",
-                        { 
-                            fps: 10, 
-                            qrbox: { width: 220, height: 220 },
-                            rememberLastUsedCamera: true
-                        },
-                        false
-                    );
+            new bootstrap.Modal(document.getElementById('questModal')).show();
+        }
+
+        async function triggerQuestModalById(id) {
+            try {
+                const res = await fetch('/api/v1/maintenance/');
+                if (!res.ok) return;
+                const data = await res.json();
+                const q = data.find(item => item.id === id);
+                if (q) triggerQuestModal(q);
+            } catch (e) {}
+        }
+
+        async function acceptCurrentQuest() {
+            if (!activeQuestId) return;
+            try {
+                const res = await fetch(`/api/v1/maintenance/${activeQuestId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'In Progress' })
+                });
+                if (res.ok) {
+                    playRPGSound('quest_accept');
+                    const m = bootstrap.Modal.getInstance(document.getElementById('questModal'));
+                    if (m) m.hide();
                     
-                    html5QrcodeScannerInstance.render(onScanSuccess, onScanFailure);
-                } catch (err) {
-                    console.error("Scanner initialize error:", err);
+                    if (typeof loadMaintenanceData === 'function') loadMaintenanceData();
+                    checkPendingQuests();
                 }
-            }, 300);
+            } catch (e) {}
         }
 
-        function clearQRScanner() {
-            if (html5QrcodeScannerInstance) {
-                try {
-                    html5QrcodeScannerInstance.clear().catch(err => console.warn("Scanner clear failure:", err));
-                } catch (e) {
-                    console.warn("Error stopping scanner instance:", e);
-                }
-                html5QrcodeScannerInstance = null;
+        function toggleQuestDropdown() {
+            const d = document.getElementById('questDropdown');
+            if (d) d.style.display = d.style.display === 'none' ? 'block' : 'none';
+        }
+
+        document.addEventListener('click', function(e) {
+            const questBtn = document.getElementById('questBtn');
+            const questDropdown = document.getElementById('questDropdown');
+            if (questBtn && questDropdown && !questBtn.contains(e.target) && !questDropdown.contains(e.target)) {
+                questDropdown.style.display = 'none';
             }
-            const readerDiv = document.getElementById('reader');
-            if (readerDiv) readerDiv.innerHTML = "";
-        }
-
-        function onScanSuccess(decodedText, decodedResult) {
-            clearQRScanner();
-            const resultDiv = document.getElementById('scannerResult');
-            if (resultDiv) {
-                resultDiv.innerHTML = `<span class="text-success fw-bold">สแกนสำเร็จ: ${decodedText}</span>`;
-            }
-            setTimeout(() => {
-                window.location.href = decodedText;
-            }, 1000);
-        }
-
-        function onScanFailure(error) {
-            // ปล่อยว่างไว้เพื่อป้องกัน Log รบกวนขณะกำลังส่องหา QR
-        }
+        });
     </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
