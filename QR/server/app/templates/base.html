@@ -571,9 +571,9 @@
                 });
             }
 
-            // เริ่มระบบดึงเควสแบบ Real-time
+            // เริ่มระบบดึงเควสแบบ Real-time ความเร็วสูง (เช็กทุก 1.5 วินาที)
             checkPendingQuests();
-            setInterval(checkPendingQuests, 8000);
+            setInterval(checkPendingQuests, 1500);
         });
 
         // --- SOUND TOGGLE ENGINE ---
@@ -749,8 +749,10 @@
             }
         }
 
-        // --- RPG QUEST ENGINE ---
+        // --- REAL-TIME RPG QUEST ENGINE ---
         let activeQuestId = null;
+        let knownQuestIds = new Set();
+        let isFirstFetch = true;
 
         function toggleQuestDropdown() {
             const dropdown = document.getElementById('questDropdown');
@@ -764,14 +766,28 @@
                 const response = await fetch('/api/maintenance/pending-quests');
                 if (!response.ok) return;
                 
-                const quests = await response.json();
+                const rawData = await response.json();
+                
+                // ถอดสเกล JSON ให้ได้เป็น Array เสมอ
+                let quests = [];
+                if (Array.isArray(rawData)) {
+                    quests = rawData;
+                } else if (rawData && Array.isArray(rawData.quests)) {
+                    quests = rawData.quests;
+                } else if (rawData && Array.isArray(rawData.data)) {
+                    quests = rawData.data;
+                } else if (rawData && Array.isArray(rawData.items)) {
+                    quests = rawData.items;
+                }
+
                 const badge = document.getElementById('questBadge');
                 const pendingBadge = document.getElementById('pendingBadge');
                 const countHeader = document.getElementById('questCountHeader');
                 const questList = document.getElementById('questList');
                 
-                const count = quests ? quests.length : 0;
+                const count = quests.length;
                 
+                // อัปเดตไอคอนตัวเลข
                 if (badge) {
                     badge.textContent = count;
                     badge.style.display = count > 0 ? 'inline-block' : 'none';
@@ -782,23 +798,45 @@
                 }
                 if (countHeader) countHeader.textContent = `${count} เควส`;
 
+                // เช็กเควสเข้ามาใหม่เพื่อทำการ Auto Pop-up สแกนแจ้งเตือน
+                if (!isFirstFetch) {
+                    const newQuests = quests.filter(q => (q.id || q._id) && !knownQuestIds.has(q.id || q._id));
+                    if (newQuests.length > 0) {
+                        popNewQuestModal(newQuests[0]);
+                    }
+                } else {
+                    isFirstFetch = false;
+                }
+
+                // บันทึก ID เควสที่รับรู้แล้ว
+                knownQuestIds = new Set(quests.map(q => q.id || q._id));
+
+                // Render รายการใน Dropdown Menu
                 if (questList) {
                     if (count === 0) {
                         questList.innerHTML = '<p class="text-muted text-center py-3 mb-0" style="font-size: 12px;">ไม่มีเควสใหม่ในขณะนี้</p>';
                     } else {
-                        questList.innerHTML = quests.map(q => `
-                            <div class="quest-item p-2.5 rounded-3 border border-secondary mb-2" style="background: rgba(255,255,255,0.05);">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="fw-bold text-warning" style="font-size: 12px;">${q.asset_code || 'N/A'}</span>
-                                    <span class="badge ${q.urgency === 'ด่วนที่สุด' ? 'bg-danger' : 'bg-warning text-dark'}" style="font-size: 9px;">${q.urgency || 'ปกติ'}</span>
+                        questList.innerHTML = quests.map(q => {
+                            const code = q.asset_code || q.asset_id || q.code || 'N/A';
+                            const urgency = q.urgency || q.priority || 'ปกติ';
+                            const desc = q.description || q.problem || q.details || '-';
+                            const reporter = q.reporter || q.informer || q.user_name || '-';
+                            const qId = q.id || q._id;
+
+                            return `
+                                <div class="quest-item p-2.5 rounded-3 border border-secondary mb-2" style="background: rgba(255,255,255,0.05);">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold text-warning" style="font-size: 12px;">${code}</span>
+                                        <span class="badge ${urgency === 'ด่วนที่สุด' || urgency === 'Critical' || urgency === 'High' ? 'bg-danger' : 'bg-warning text-dark'}" style="font-size: 9px;">${urgency}</span>
+                                    </div>
+                                    <p class="mb-1 text-white text-truncate" style="font-size: 11px;">${desc}</p>
+                                    <div class="d-flex justify-content-between text-muted" style="font-size: 10px;">
+                                        <span>โดย: ${reporter}</span>
+                                        <a href="/maintenance?id=${qId}" class="text-warning text-decoration-none fw-bold">ดูรายละเอียด <i class="bi bi-arrow-right"></i></a>
+                                    </div>
                                 </div>
-                                <p class="mb-1 text-white text-truncate" style="font-size: 11px;">${q.description || '-'}</p>
-                                <div class="d-flex justify-content-between text-muted" style="font-size: 10px;">
-                                    <span>โดย: ${q.reporter || '-'}</span>
-                                    <a href="/maintenance?id=${q.id}" class="text-warning text-decoration-none fw-bold">ดูรายละเอียด <i class="bi bi-arrow-right"></i></a>
-                                </div>
-                            </div>
-                        `).join('');
+                            `;
+                        }).join('');
                     }
                 }
             } catch (error) {
@@ -806,9 +844,36 @@
             }
         }
 
+        // แสดง Pop-up เควสใหม่ทันที
+        function popNewQuestModal(quest) {
+            if (!quest) return;
+            const codeEl = document.getElementById('questAssetCode');
+            const descEl = document.getElementById('questDescription');
+            const reporterEl = document.getElementById('questReporter');
+            const timeEl = document.getElementById('questTime');
+            const urgencyBadge = document.getElementById('questUrgencyBadge');
+
+            if (codeEl) codeEl.textContent = quest.asset_code || quest.asset_id || quest.code || 'AST-0000';
+            if (descEl) descEl.textContent = quest.description || quest.problem || quest.details || '-';
+            if (reporterEl) reporterEl.textContent = quest.reporter || quest.informer || quest.user_name || '-';
+            if (timeEl) timeEl.textContent = quest.created_at || quest.time || 'เมื่อสักครู่';
+            
+            if (urgencyBadge) {
+                const urgency = quest.urgency || quest.priority || 'ปกติ';
+                urgencyBadge.innerHTML = `<span class="badge ${urgency === 'ด่วนที่สุด' || urgency === 'Critical' || urgency === 'High' ? 'bg-danger' : 'bg-warning text-dark'}">${urgency}</span>`;
+            }
+
+            activeQuestId = quest.id || quest._id;
+            const modalEl = document.getElementById('questModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        }
+
         function acceptCurrentQuest() {
             if (activeQuestId) {
-                window.location.href = `/maintenance/accept/${activeQuestId}`;
+                window.location.href = `/maintenance?accept_id=${activeQuestId}`;
             }
         }
 
