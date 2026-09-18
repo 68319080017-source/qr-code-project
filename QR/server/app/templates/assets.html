@@ -260,10 +260,13 @@
         renderAssetsTable(filtered);
     }
 
-    // เปิด Modal เพิ่มครุภัณฑ์
+    // เปิด Modal เพิ่มครุภัณฑ์ (เพิ่มคำสั่งแก้ปัญหาฉากหลังบังแล้ว)
     function openAddAssetModal() {
         const el = document.getElementById('addAssetModal');
         if (el && typeof bootstrap !== 'undefined') {
+            // **คำสั่งนี้ถูกเพิ่มเข้ามา เพื่อย้าย Modal ออกจาก z-index เดิม**
+            document.body.appendChild(el);
+            
             const modal = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
             modal.show();
         }
