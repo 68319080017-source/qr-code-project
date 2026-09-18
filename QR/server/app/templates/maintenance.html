@@ -1,3 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- SweetAlert2 CDN (สำหรับระบบ Alert ป๊อบอัพสวยๆ) -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- CSS ตกแต่งสถานะและ SweetAlert2 Dark Theme -->
+<style>
+    .swal-dark {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+        border: 1px solid #334155 !important;
+    }
+    .swal-dark .swal2-title, 
+    .swal-dark .swal2-html-container {
+        color: #f8fafc !important;
+    }
+    .status-badge-completed {
+        background-color: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+    .status-badge-progress {
+        background-color: rgba(14, 165, 233, 0.2);
+        color: #38bdf8;
+        border: 1px solid rgba(14, 165, 233, 0.4);
+    }
+    .status-badge-pending {
+        background-color: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold text-light mb-1">🛠️ แจ้งซ่อม / บำรุงรักษา</h4>
+            <p class="text-secondary mb-0">รายการแจ้งซ่อมครุภัณฑ์และติดตามสถานะ</p>
+        </div>
+        <button class="btn btn-outline-secondary position-relative" onclick="openTrashModal()">
+            <i class="bi bi-trash3-fill me-1"></i> ถังขยะ
+            <span id="trashCountBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">0</span>
+        </button>
+    </div>
+
+    <!-- KPI Cards สรุปสถานะ -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-dark text-light border-secondary">
+                <div class="card-body">
+                    <small class="text-secondary">แจ้งซ่อมทั้งหมด</small>
+                    <h3 id="countTotal" class="fw-bold mt-1 mb-0">0</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-light border-secondary">
+                <div class="card-body">
+                    <small class="text-warning">เควสใหม่ / รอดำเนินการ</small>
+                    <h3 id="countPending" class="fw-bold text-warning mt-1 mb-0">0</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-light border-secondary">
+                <div class="card-body">
+                    <small class="text-info">กำลังดำเนินการ</small>
+                    <h3 id="countProgress" class="fw-bold text-info mt-1 mb-0">0</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-light border-secondary">
+                <div class="card-body">
+                    <small class="text-success">ซ่อมเสร็จแล้ว</small>
+                    <h3 id="countCompleted" class="fw-bold text-success mt-1 mb-0">0</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ช่องค้นหา & ตารางข้อมูล -->
+    <div class="card bg-dark border-secondary">
+        <div class="card-body">
+            <div class="mb-3">
+                <input type="text" id="searchInput" class="form-control bg-dark text-light border-secondary" placeholder="🔍 ค้นหารายการแจ้งซ่อม...">
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead>
+                        <tr class="text-secondary">
+                            <th>รหัสครุภัณฑ์</th>
+                            <th>อาการเสีย</th>
+                            <th>ผู้แจ้ง</th>
+                            <th>ความเร่งด่วน</th>
+                            <th>สถานะ</th>
+                            <th>วันที่แจ้ง</th>
+                            <th class="text-end">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="maintenanceTableBody">
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-secondary">กำลังโหลดข้อมูล...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal หน้าต่างถังขยะ -->
+<div class="modal fade" id="trashModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-trash3 me-2"></i> ถังขยะ (รายการที่ถูกลบ)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead>
+                            <tr class="text-secondary">
+                                <th class="ps-3">รหัส</th>
+                                <th>อาการเสีย</th>
+                                <th>ผู้แจ้ง</th>
+                                <th>วันที่</th>
+                                <th class="text-end pe-3">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trashTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- โค้ด JavaScript ระบบ RPG และการจัดการข้อมูล -->
 <script>
 let rawMaintenanceData = [];
 
@@ -45,7 +193,6 @@ async function loadMaintenanceData() {
         if (!res.ok) return;
         rawMaintenanceData = await res.json();
 
-        // ✅ แก้ไข: เพิ่มการกรองสถานะ "เควสใหม่" และสถานะภาษาไทยให้ครบถ้วน
         document.getElementById('countTotal').innerText = rawMaintenanceData.length;
         document.getElementById('countPending').innerText = rawMaintenanceData.filter(i => 
             ['Pending', 'pending', 'รอดำเนินการ', 'เควสใหม่'].includes(i.status)
@@ -397,9 +544,9 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
     renderTable(filtered);
 });
 
-// ✅ แก้ไข: ปรับเวลา Auto-Refresh เพิ่มเป็น 30 วินาที (30000ms) เพื่อป้องกัน Server หนักเกินไป
 document.addEventListener('DOMContentLoaded', () => {
     loadMaintenanceData();
     setInterval(loadMaintenanceData, 30000);
 });
 </script>
+{% endblock %}

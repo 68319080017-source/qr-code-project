@@ -14,7 +14,13 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 if "sqlite" in DATABASE_URL:
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    engine = create_engine(DATABASE_URL)
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,   # ตรวจสอบความพร้อมของ Connection ก่อนยิง Query
+        pool_recycle=300,     # คืน Connection ทุก 5 นาที ป้องกันการค้าง
+        pool_size=5,          # จำกัดจำนวน Connection หลักไว้ที่ 5
+        max_overflow=10       # สำรอง Connection เพิ่มชั่วคราวได้อีก 10
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
