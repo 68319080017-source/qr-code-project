@@ -571,7 +571,7 @@
                 });
             }
 
-            // เริ่มระบบดึงเควสแบบ Real-time ความเร็วสูง (เช็กทุก 1.5 วินาที)
+            // เริ่มระบบดึงเควสแบบ Real-time เช็กทุก 1.5 วินาที
             checkPendingQuests();
             setInterval(checkPendingQuests, 1500);
         });
@@ -749,7 +749,7 @@
             }
         }
 
-        // --- REAL-TIME RPG QUEST ENGINE ---
+        // --- REAL-TIME RPG QUEST ENGINE (ULTRA COMPATIBLE) ---
         let activeQuestId = null;
         let knownQuestIds = new Set();
         let isFirstFetch = true;
@@ -761,25 +761,56 @@
             }
         }
 
+        // ฟังก์ชันช่วยดึง Array ไม่ว่าจะซ้อนโครงสร้างแบบไหน
+        function extractQuestsArray(data) {
+            if (!data) return [];
+            if (Array.isArray(data)) return data;
+            if (Array.isArray(data.data)) return data.data;
+            if (Array.isArray(data.quests)) return data.quests;
+            if (Array.isArray(data.pending_quests)) return data.pending_quests;
+            if (Array.isArray(data.items)) return data.items;
+            if (Array.isArray(data.records)) return data.records;
+            if (data.data && Array.isArray(data.data.items)) return data.data.items;
+            if (data.data && Array.isArray(data.data.quests)) return data.data.quests;
+            return [];
+        }
+
         async function checkPendingQuests() {
             try {
-                const response = await fetch('/api/maintenance/pending-quests');
-                if (!response.ok) return;
-                
-                const rawData = await response.json();
-                
-                // ถอดสเกล JSON ให้ได้เป็น Array เสมอ
                 let quests = [];
-                if (Array.isArray(rawData)) {
-                    quests = rawData;
-                } else if (rawData && Array.isArray(rawData.quests)) {
-                    quests = rawData.quests;
-                } else if (rawData && Array.isArray(rawData.data)) {
-                    quests = rawData.data;
-                } else if (rawData && Array.isArray(rawData.items)) {
-                    quests = rawData.items;
+
+                // 1. ลองดึงจาก API เควสรอรับโดยตรง
+                try {
+                    const response = await fetch('/api/maintenance/pending-quests');
+                    if (response.ok) {
+                        const rawData = await response.json();
+                        quests = extractQuestsArray(rawData);
+                    }
+                } catch (err) {
+                    console.warn("Primary quest endpoint error:", err);
                 }
 
+                // 2. AUTO-FALLBACK: ถ้า API แรกคืนค่าว่าง ให้ดึงจาก /api/maintenance แล้ว Auto-Filter สถานะ
+                if (!quests || quests.length === 0) {
+                    try {
+                        const fallbackResp = await fetch('/api/maintenance');
+                        if (fallbackResp.ok) {
+                            const fallbackData = await fallbackResp.json();
+                            const allItems = extractQuestsArray(fallbackData);
+                            
+                            // กรองเฉพาะสถานะที่เป็นเควสใหม่ / รอดำเนินการ
+                            const pendingStatuses = ['เควสใหม่', 'รอดำเนินการ', 'pending', 'รอรับเควส', 'new', 'รอซ่อม', 'waiting'];
+                            quests = allItems.filter(item => {
+                                const st = String(item.status || item.quest_status || '').toLowerCase().trim();
+                                return pendingStatuses.some(ps => st.includes(ps.toLowerCase()));
+                            });
+                        }
+                    } catch (fErr) {
+                        console.warn("Fallback maintenance endpoint error:", fErr);
+                    }
+                }
+
+                // อัปเดต UI ทั้งหมด
                 const badge = document.getElementById('questBadge');
                 const pendingBadge = document.getElementById('pendingBadge');
                 const countHeader = document.getElementById('questCountHeader');
@@ -787,20 +818,24 @@
                 
                 const count = quests.length;
                 
-                // อัปเดตไอคอนตัวเลข
+                // อัปเดตไอคอนตัวเลขปุ่มบนขวา
                 if (badge) {
                     badge.textContent = count;
                     badge.style.display = count > 0 ? 'inline-block' : 'none';
                 }
+                // อัปเดตไอคอนเมนูแจ้งซ่อมฝั่งซ้าย
                 if (pendingBadge) {
                     pendingBadge.textContent = count;
                     pendingBadge.classList.toggle('d-none', count === 0);
                 }
                 if (countHeader) countHeader.textContent = `${count} เควส`;
 
-                // เช็กเควสเข้ามาใหม่เพื่อทำการ Auto Pop-up สแกนแจ้งเตือน
+                // เช็กเควสเข้ามาใหม่เพื่อทำการ Auto Pop-up แจ้งเตือน
                 if (!isFirstFetch) {
-                    const newQuests = quests.filter(q => (q.id || q._id) && !knownQuestIds.has(q.id || q._id));
+                    const newQuests = quests.filter(q => {
+                        const qId = q.id || q._id || q.asset_code || q.code;
+                        return qId && !knownQuestIds.has(qId);
+                    });
                     if (newQuests.length > 0) {
                         popNewQuestModal(newQuests[0]);
                     }
@@ -809,7 +844,7 @@
                 }
 
                 // บันทึก ID เควสที่รับรู้แล้ว
-                knownQuestIds = new Set(quests.map(q => q.id || q._id));
+                knownQuestIds = new Set(quests.map(q => q.id || q._id || q.asset_code || q.code));
 
                 // Render รายการใน Dropdown Menu
                 if (questList) {
@@ -817,11 +852,11 @@
                         questList.innerHTML = '<p class="text-muted text-center py-3 mb-0" style="font-size: 12px;">ไม่มีเควสใหม่ในขณะนี้</p>';
                     } else {
                         questList.innerHTML = quests.map(q => {
-                            const code = q.asset_code || q.asset_id || q.code || 'N/A';
-                            const urgency = q.urgency || q.priority || 'ปกติ';
-                            const desc = q.description || q.problem || q.details || '-';
-                            const reporter = q.reporter || q.informer || q.user_name || '-';
-                            const qId = q.id || q._id;
+                            const code = q.asset_code || q.asset_id || q.code || `#${q.id || 'N/A'}`;
+                            const urgency = q.urgency || q.priority || 'Normal';
+                            const desc = q.description || q.problem || q.details || q.reason || 'ไม่มีรายละเอียด';
+                            const reporter = q.reporter || q.informer || q.user_name || q.reporter_name || 'ไม่ระบุชื่อ';
+                            const qId = q.id || q._id || '';
 
                             return `
                                 <div class="quest-item p-2.5 rounded-3 border border-secondary mb-2" style="background: rgba(255,255,255,0.05);">
@@ -840,7 +875,7 @@
                     }
                 }
             } catch (error) {
-                console.error("Error fetching pending quests:", error);
+                console.error("Error checking pending quests:", error);
             }
         }
 
@@ -853,13 +888,13 @@
             const timeEl = document.getElementById('questTime');
             const urgencyBadge = document.getElementById('questUrgencyBadge');
 
-            if (codeEl) codeEl.textContent = quest.asset_code || quest.asset_id || quest.code || 'AST-0000';
-            if (descEl) descEl.textContent = quest.description || quest.problem || quest.details || '-';
+            if (codeEl) codeEl.textContent = quest.asset_code || quest.asset_id || quest.code || `#${quest.id || '0000'}`;
+            if (descEl) descEl.textContent = quest.description || quest.problem || quest.details || quest.reason || '-';
             if (reporterEl) reporterEl.textContent = quest.reporter || quest.informer || quest.user_name || '-';
             if (timeEl) timeEl.textContent = quest.created_at || quest.time || 'เมื่อสักครู่';
             
             if (urgencyBadge) {
-                const urgency = quest.urgency || quest.priority || 'ปกติ';
+                const urgency = quest.urgency || quest.priority || 'Normal';
                 urgencyBadge.innerHTML = `<span class="badge ${urgency === 'ด่วนที่สุด' || urgency === 'Critical' || urgency === 'High' ? 'bg-danger' : 'bg-warning text-dark'}">${urgency}</span>`;
             }
 
@@ -874,6 +909,8 @@
         function acceptCurrentQuest() {
             if (activeQuestId) {
                 window.location.href = `/maintenance?accept_id=${activeQuestId}`;
+            } else {
+                window.location.href = `/maintenance`;
             }
         }
 
