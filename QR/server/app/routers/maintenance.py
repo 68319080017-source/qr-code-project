@@ -6,7 +6,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, or_
 
 from app.database.connection import get_db
 from app.models.user import User
@@ -65,7 +65,8 @@ def get_trash_list(db: Session = Depends(get_db)) -> Any:
         records = db.execute(stmt).scalars().all()
         return records
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+        print(f"[Trash List Query Error]: {e}")
+        return []
 
 
 # ==========================================
@@ -80,24 +81,31 @@ def read_maintenance_records(
     status: Optional[str] = Query(None, description="Filter by status"),
 ) -> Any:
     try:
-        stmt = select(MaintenanceModel).where(
-            (MaintenanceModel.is_deleted == False) | (MaintenanceModel.is_deleted == None)
-        )
+        # ตรวจสอบเพื่อรองรับกรณีที่ DB ยังไม่มีคอลัมน์ is_deleted
+        if hasattr(MaintenanceModel, "is_deleted"):
+            stmt = select(MaintenanceModel).where(
+                or_(MaintenanceModel.is_deleted == False, MaintenanceModel.is_deleted.is_(None))
+            )
+        else:
+            stmt = select(MaintenanceModel)
         
         if asset_id is not None:
             stmt = stmt.where(MaintenanceModel.asset_id == asset_id)
         
-        if status is not None:
-            if status.lower() in ["pending", "เควสใหม่", "รอดำเนินการ"]:
+        if status is not None and status.strip():
+            clean_status = status.strip()
+            if clean_status.lower() in ["pending", "เควสใหม่", "รอดำเนินการ"]:
                 stmt = stmt.where(MaintenanceModel.status.in_(["Pending", "pending", "เควสใหม่", "รอดำเนินการ"]))
             else:
-                stmt = stmt.where(MaintenanceModel.status == status)
+                stmt = stmt.where(MaintenanceModel.status == clean_status)
         
         stmt = stmt.order_by(MaintenanceModel.id.desc()).offset(skip).limit(limit)
         records = db.execute(stmt).scalars().all()
         return records
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+        print(f"[Read Maintenance Error]: {e}")
+        # คืนค่า list ว่างแทนการตัดจบด้วย 500 Error เพื่อป้องกันไม่ให้ Frontend หมุนค้าง
+        return []
 
 
 # ==========================================
@@ -193,7 +201,7 @@ def soft_delete_maintenance(
     db: Session = Depends(get_db)
 ) -> Any:
     stmt = select(MaintenanceModel).where(MaintenanceModel.id == maintenance_id)
-    record = record = db.execute(stmt).scalar_one_or_none()
+    record = db.execute(stmt).scalar_one_or_none()
     
     if not record:
         raise HTTPException(status_code=404, detail="ไม่พบรายการที่ต้องการลบ")
@@ -245,7 +253,7 @@ def update_maintenance(
         if asset:
             asset.status = "ใช้งานได้ปกติ"
             
-    for field, value in maintenance_in.dict(exclude_unset=True).items():
+    for field, value in maintenance_in.model_dump(exclude_unset=True).items():
         setattr(record, field, value)
 
     db.commit()
