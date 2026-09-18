@@ -59,11 +59,19 @@ def read_maintenance_records(
     skip: int = 0,
     limit: int = 100,
     asset_id: Optional[int] = Query(None, description="Filter by asset id"),
+    status: Optional[str] = Query(None, description="Filter by status"),  # ✅ เพิ่มการกรองตามสถานะ
 ) -> Any:
     try:
         stmt = select(MaintenanceModel)
         if asset_id is not None:
             stmt = stmt.where(MaintenanceModel.asset_id == asset_id)
+        
+        # ✅ รองรับการกรองสถานะเควสใหม่/รอดำเนินการ แบบยืดหยุ่น (ทั้งคำไทยและอังกฤษ)
+        if status is not None:
+            if status.lower() in ["pending", "เควสใหม่", "รอดำเนินการ"]:
+                stmt = stmt.where(MaintenanceModel.status.in_(["Pending", "pending", "เควสใหม่", "รอดำเนินการ"]))
+            else:
+                stmt = stmt.where(MaintenanceModel.status == status)
         
         stmt = stmt.order_by(MaintenanceModel.id.desc()).offset(skip).limit(limit)
         records = db.execute(stmt).scalars().all()
@@ -100,13 +108,14 @@ def create_maintenance(
         reporter_name = maintenance_in.reporter_name or "ประชาชนทั่วไป"
         urgency = maintenance_in.urgency or "Normal"
 
+        # ✅ บันทึกสถานะเริ่มต้นเป็น "เควสใหม่" เพื่อให้ตรงกับในตารางและส่วนแสดงผล
         db_obj = MaintenanceModel(
             asset_id=asset.id,
             reporter_id=None,
             reporter_name=reporter_name,
             issue_description=maintenance_in.issue_description,
             urgency=urgency,
-            status="Pending",
+            status="เควสใหม่",
             notes=maintenance_in.notes
         )
         db.add(db_obj)
@@ -150,7 +159,7 @@ def update_maintenance(
     if not record:
         raise HTTPException(status_code=404, detail="Maintenance record not found")
         
-    if maintenance_in.status in ["Done", "Returned", "ใช้งานได้ปกติ", "Completed"]:
+    if maintenance_in.status in ["Done", "Returned", "ใช้งานได้ปกติ", "Completed", "สำเร็จแล้ว"]:
         maintenance_in.completed_at = datetime.now(THAI_TZ)
         asset_stmt = select(Asset).where(Asset.id == record.asset_id)
         asset = db.execute(asset_stmt).scalar_one_or_none()
