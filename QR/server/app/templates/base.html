@@ -559,8 +559,9 @@
                 });
             }
 
+            // ⚡ เช็กเควสใหม่แบบเรียลไทม์ทุก 3 วินาที (แจ้งปึ้บเด้งปั้บ ดีเลย์น้อยที่สุด)
             checkPendingQuests();
-            setInterval(checkPendingQuests, 15000);
+            setInterval(checkPendingQuests, 3000);
         });
 
         // --- REAL-TIME QUEST ENGINE ---
@@ -596,6 +597,7 @@
                     questCountHeader.textContent = `${count} เควส`;
                 }
 
+                // 🔔 ถ้ามีเควสใหม่เข้ามา -> ส่งเสียง Chime สไตล์ RPG + เด้ง Modal ทันที
                 if (previousQuestCount !== -1 && count > previousQuestCount) {
                     playQuestNotificationSound();
                     if (quests.length > 0) {
@@ -691,7 +693,7 @@
             }
         }
 
-        // --- FUNCTION ACCEPT QUEST ---
+        // ⚔️ ฟังก์ชันกดรับเควส -> วาร์ปเด้งกลับหน้า /maintenance ทันที
         async function acceptCurrentQuest() {
             if (!activeQuestId) {
                 alert("ไม่สามารถรับเควสได้: ไม่พบ ID ของเควส");
@@ -716,13 +718,8 @@
                     const modalInstance = bootstrap.Modal.getInstance(modalEl);
                     if (modalInstance) modalInstance.hide();
 
-                    alert("⚔️ รับเควสสำเร็จ! อัปเดตสถานะเป็น 'กำลังดำเนินการ' เรียบร้อย");
-
-                    checkPendingQuests();
-                    
-                    if (window.location.pathname === '/maintenance') {
-                        window.location.reload();
-                    }
+                    // 🚀 วาร์ปไปที่หน้าเมนูหลัก 'แจ้งซ่อม / บำรุง' ทันที!
+                    window.location.href = '/maintenance';
                 } else {
                     const errData = await res.json().catch(() => ({}));
                     console.error("[Accept Quest Error]:", errData);
@@ -739,7 +736,44 @@
             }
         }
 
-        // --- SOUND & INTRO UTILS ---
+        // 🔊 ระบบสร้างเสียงแจ้งเตือนเควสสไตล์ RPG (2-Tone High Chime)
+        function playQuestNotificationSound() {
+            if (localStorage.getItem('sound_fx_enabled') === 'false') return;
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+
+                const now = ctx.currentTime;
+                
+                // เสียงที่ 1 (High Tone 1)
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(523.25, now); // C5
+                gain1.gain.setValueAtTime(0.3, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.2);
+
+                // เสียงที่ 2 (High Tone 2)
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(880, now + 0.15); // A5
+                gain2.gain.setValueAtTime(0.4, now + 0.15);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(now + 0.15);
+                osc2.stop(now + 0.55);
+            } catch (e) {
+                console.log("Audio play prevented:", e);
+            }
+        }
+
         function toggleSound() {
             const current = localStorage.getItem('sound_fx_enabled') || 'true';
             const next = current === 'true' ? 'false' : 'true';
@@ -756,24 +790,6 @@
                     icon.className = 'bi bi-volume-mute-fill text-secondary';
                 }
             }
-        }
-
-        function playQuestNotificationSound() {
-            if (localStorage.getItem('sound_fx_enabled') === 'false') return;
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3);
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.3);
-            } catch (e) {}
         }
 
         function initIntroMode() {
