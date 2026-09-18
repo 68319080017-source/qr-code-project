@@ -53,20 +53,40 @@ def send_line_maintenance_notification(asset_code: str, asset_name: str, reporte
         print(f"[LINE Notify Error]: {e}")
 
 
+# ==========================================
+#  1. API ดึงรายการในถังขยะ
+# ==========================================
+@router.get("/trash-list", response_model=List[Maintenance])
+def get_trash_list(db: Session = Depends(get_db)) -> Any:
+    try:
+        stmt = select(MaintenanceModel).where(
+            MaintenanceModel.is_deleted == True
+        ).order_by(MaintenanceModel.id.desc())
+        records = db.execute(stmt).scalars().all()
+        return records
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+
+
+# ==========================================
+#  2. API ดึงข้อมูลรายการแจ้งซ่อมหน้าหลัก (ซ่อนรายการที่ถูกลบ)
+# ==========================================
 @router.get("/", response_model=List[Maintenance])
 def read_maintenance_records(
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
     asset_id: Optional[int] = Query(None, description="Filter by asset id"),
-    status: Optional[str] = Query(None, description="Filter by status"),  # ✅ เพิ่มการกรองตามสถานะ
+    status: Optional[str] = Query(None, description="Filter by status"),
 ) -> Any:
     try:
-        stmt = select(MaintenanceModel)
+        stmt = select(MaintenanceModel).where(
+            (MaintenanceModel.is_deleted == False) | (MaintenanceModel.is_deleted == None)
+        )
+        
         if asset_id is not None:
             stmt = stmt.where(MaintenanceModel.asset_id == asset_id)
         
-        # ✅ รองรับการกรองสถานะเควสใหม่/รอดำเนินการ แบบยืดหยุ่น (ทั้งคำไทยและอังกฤษ)
         if status is not None:
             if status.lower() in ["pending", "เควสใหม่", "รอดำเนินการ"]:
                 stmt = stmt.where(MaintenanceModel.status.in_(["Pending", "pending", "เควสใหม่", "รอดำเนินการ"]))
@@ -80,6 +100,9 @@ def read_maintenance_records(
         raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
 
 
+# ==========================================
+#  3. API สร้างรายการแจ้งซ่อมใหม่
+# ==========================================
 @router.post("/", response_model=Maintenance)
 def create_maintenance(
     *,
@@ -88,11 +111,9 @@ def create_maintenance(
     background_tasks: BackgroundTasks
 ) -> Any:
     try:
-        # 1. ค้นหาด้วย Asset ID ก่อน
         stmt = select(Asset).where(Asset.id == maintenance_in.asset_id)
         asset = db.execute(stmt).scalar_one_or_none()
 
-        # 2. ถ้าไม่เจอ ให้หาด้วย asset_code
         if not asset:
             code_str = str(maintenance_in.asset_id)
             stmt_code = select(Asset).where(
@@ -108,7 +129,6 @@ def create_maintenance(
         reporter_name = maintenance_in.reporter_name or "ประชาชนทั่วไป"
         urgency = maintenance_in.urgency or "Normal"
 
-        # ✅ บันทึกสถานะเริ่มต้นเป็น "เควสใหม่" เพื่อให้ตรงกับในตารางและส่วนแสดงผล
         db_obj = MaintenanceModel(
             asset_id=asset.id,
             reporter_id=None,
@@ -116,17 +136,15 @@ def create_maintenance(
             issue_description=maintenance_in.issue_description,
             urgency=urgency,
             status="เควสใหม่",
-            notes=maintenance_in.notes
+            notes=maintenance_in.notes,
+            is_deleted=False
         )
         db.add(db_obj)
-
-        # อัปเดตสถานะของ Asset
         asset.status = "ส่งซ่อม"
 
         db.commit()
         db.refresh(db_obj)
 
-        # ส่ง LINE Notification ในรูปแบบ Background Task
         background_tasks.add_task(
             send_line_maintenance_notification,
             asset_code=asset.asset_code,
@@ -146,6 +164,67 @@ def create_maintenance(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
+# ==========================================
+#  4. API ลบรายการออกจาก DB ถาวร (Permanent Delete)
+# ==========================================
+@router.delete("/{maintenance_id}/permanent-delete")
+def permanent_delete_maintenance(
+    maintenance_id: int,
+    db: Session = Depends(get_db)
+) -> Any:
+    stmt = select(MaintenanceModel).where(MaintenanceModel.id == maintenance_id)
+    record = db.execute(stmt).scalar_one_or_none()
+    
+    if not record:
+        raise HTTPException(status_code=404, detail="ไม่พบรายการที่ต้องการลบ")
+        
+    db.delete(record)
+    db.commit()
+    return {"message": "ลบรายการออกจากระบบถาวรเรียบร้อยแล้ว"}
+
+
+# ==========================================
+#  5. API ย้ายลงถังขยะ (Soft Delete)
+# ==========================================
+@router.delete("/{maintenance_id}")
+@router.put("/{maintenance_id}/soft-delete")
+def soft_delete_maintenance(
+    maintenance_id: int,
+    db: Session = Depends(get_db)
+) -> Any:
+    stmt = select(MaintenanceModel).where(MaintenanceModel.id == maintenance_id)
+    record = record = db.execute(stmt).scalar_one_or_none()
+    
+    if not record:
+        raise HTTPException(status_code=404, detail="ไม่พบรายการที่ต้องการลบ")
+        
+    record.is_deleted = True
+    db.commit()
+    return {"message": "ลบรายการเรียบร้อยแล้ว"}
+
+
+# ==========================================
+#  6. API กู้คืนข้อมูลจากถังขยะ (Restore)
+# ==========================================
+@router.put("/{maintenance_id}/restore")
+def restore_maintenance(
+    maintenance_id: int,
+    db: Session = Depends(get_db)
+) -> Any:
+    stmt = select(MaintenanceModel).where(MaintenanceModel.id == maintenance_id)
+    record = db.execute(stmt).scalar_one_or_none()
+    
+    if not record:
+        raise HTTPException(status_code=404, detail="ไม่พบรายการที่ต้องการกู้คืน")
+        
+    record.is_deleted = False
+    db.commit()
+    return {"message": "กู้คืนรายการเรียบร้อยแล้ว"}
+
+
+# ==========================================
+#  7. API อัปเดตข้อมูล/สถานะการซ่อม
+# ==========================================
 @router.put("/{maintenance_id}", response_model=Maintenance)
 def update_maintenance(
     *,
@@ -165,7 +244,7 @@ def update_maintenance(
         asset = db.execute(asset_stmt).scalar_one_or_none()
         if asset:
             asset.status = "ใช้งานได้ปกติ"
-             
+            
     for field, value in maintenance_in.dict(exclude_unset=True).items():
         setattr(record, field, value)
 

@@ -1,179 +1,3 @@
-{% extends "base.html" %}
-
-{% block title %}ระบบแจ้งซ่อม - Asset Management RPG{% endblock %}
-{% block page_title %}ระบบแจ้งซ่อม / บำรุงรักษา (RPG Quests){% endblock %}
-
-{% block extra_css %}
-<!-- SweetAlert2 CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-<style>
-    div.swal2-popup.swal-dark {
-        background-color: #0d1424 !important;
-        color: #f8fafc !important;
-        border: 1px solid rgba(245, 158, 11, 0.4) !important;
-        border-radius: 1.25rem !important;
-        backdrop-filter: blur(20px);
-        box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-    }
-    .swal-dark .swal2-title {
-        color: #f8fafc !important;
-        font-size: 1.35rem !important;
-        font-weight: 700;
-    }
-    .swal-dark .swal2-html-container {
-        color: #94a3b8 !important;
-    }
-
-    /* Badges Style */
-    .status-badge-pending {
-        background: rgba(234, 179, 8, 0.15) !important;
-        color: #facc15 !important;
-        border: 1px solid rgba(234, 179, 8, 0.4);
-    }
-    .status-badge-progress {
-        background: rgba(6, 182, 212, 0.15) !important;
-        color: #22d3ee !important;
-        border: 1px solid rgba(6, 182, 212, 0.4);
-    }
-    .status-badge-completed {
-        background: rgba(34, 197, 94, 0.15) !important;
-        color: #4ade80 !important;
-        border: 1px solid rgba(34, 197, 94, 0.4);
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<!-- 1. KPI Summary Cards -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="glass-card p-3.5 d-flex flex-row align-items-center justify-content-between">
-            <div>
-                <small class="text-secondary d-block fw-medium mb-1">⚔️ เควสใหม่ / รอดำเนินการ</small>
-                <span class="fs-2 fw-bold text-warning" id="countPending">0</span>
-            </div>
-            <div class="p-3 rounded-4" style="background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.2);">
-                <i class="bi bi-hourglass-split fs-3"></i>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="glass-card p-3.5 d-flex flex-row align-items-center justify-content-between">
-            <div>
-                <small class="text-secondary d-block fw-medium mb-1">🛠️ กำลังทำเควส / กำลังซ่อม</small>
-                <span class="fs-2 fw-bold text-info" id="countProgress">0</span>
-            </div>
-            <div class="p-3 rounded-4" style="background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.2);">
-                <i class="bi bi-tools fs-3"></i>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="glass-card p-3.5 d-flex flex-row align-items-center justify-content-between">
-            <div>
-                <small class="text-secondary d-block fw-medium mb-1">🏆 เควสสำเร็จ / ซ่อมเสร็จแล้ว</small>
-                <span class="fs-2 fw-bold text-success" id="countCompleted">0</span>
-            </div>
-            <div class="p-3 rounded-4" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2);">
-                <i class="bi bi-check2-circle fs-3"></i>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="glass-card p-3.5 d-flex flex-row align-items-center justify-content-between">
-            <div>
-                <small class="text-secondary d-block fw-medium mb-1">📜 ภารกิจทั้งหมด</small>
-                <span class="fs-2 fw-bold" style="color: #FFE082;" id="countTotal">0</span>
-            </div>
-            <div class="p-3 rounded-4" style="background: rgba(193, 154, 107, 0.15); color: #FFE082; border: 1px solid rgba(193, 154, 107, 0.2);">
-                <i class="bi bi-list-task fs-3"></i>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 2. Main Table Card -->
-<div class="glass-card p-4">
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-        <div>
-            <h5 class="fw-bold mb-1 text-white"><i class="bi bi-wrench-adjustable me-2 text-warning"></i>รายการแจ้งซ่อม / ภารกิจเควสทั้งหมด</h5>
-            <p class="text-secondary small mb-0">ติดตาม รับเควส และจัดการสถานะการซ่อมแซมครุภัณฑ์แบบ Real-time</p>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-            <!-- 🗑️ ปุ่ม Recycle Bin (สไตล์ PC) -->
-            <button class="btn btn-outline-danger position-relative rounded-3 px-3 py-2 d-flex align-items-center gap-2 shadow-sm" onclick="openTrashModal()" title="ถังขยะ / รายการที่ลบ">
-                <i class="bi bi-trash3-fill fs-6"></i>
-                <span class="d-none d-sm-inline small fw-semibold">ถังขยะ</span>
-                <span id="trashCountBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-danger border border-dark" style="display: none; font-size: 10px;">0</span>
-            </button>
-
-            <!-- ช่องค้นหา -->
-            <div class="input-group style-search">
-                <span class="input-group-text border-0 text-secondary" style="background: rgba(255,255,255,0.05); border-radius: 12px 0 0 12px;"><i class="bi bi-search"></i></span>
-                <input type="text" id="searchInput" class="form-control border-0 text-light px-3" placeholder="ค้นหาอาการ / ผู้แจ้ง / รหัส..." style="background: rgba(255,255,255,0.05); border-radius: 0 12px 12px 0; max-width: 240px;">
-            </div>
-        </div>
-    </div>
-
-    <!-- Table -->
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0 text-light" style="border-color: rgba(255,255,255,0.05);">
-            <thead>
-                <tr class="text-secondary fs-7 text-uppercase" style="border-bottom: 2px solid rgba(255,255,255,0.08);">
-                    <th class="py-3">รหัสครุภัณฑ์</th>
-                    <th class="py-3">อาการชำรุด / เหตุผล</th>
-                    <th class="py-3">ผู้แจ้งซ่อม</th>
-                    <th class="py-3">ความเร่งด่วน</th>
-                    <th class="py-3">สถานะเควส</th>
-                    <th class="py-3">วันที่แจ้ง</th>
-                    <th class="py-3 text-end">จัดการเควส</th>
-                </tr>
-            </thead>
-            <tbody id="maintenanceTableBody">
-                <!-- Data loaded via JS -->
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- 🗑️ MODAL RECYCLE BIN (หน้าต่างถังขยะ) -->
-<div class="modal fade" id="trashModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content text-light" style="background: #0d1424; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 1.25rem; backdrop-filter: blur(20px); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
-            <div class="modal-header border-bottom border-secondary border-opacity-25 p-3">
-                <h5 class="modal-title fw-bold text-danger d-flex align-items-center gap-2 mb-0">
-                    <i class="bi bi-trash3-fill"></i> Recycle Bin (ประวัติรายการที่ถูกลบ)
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
-                    <table class="table table-hover align-middle mb-0 text-light" style="border-color: rgba(255,255,255,0.05); font-size: 0.9rem;">
-                        <thead>
-                            <tr class="text-secondary small bg-dark bg-opacity-50">
-                                <th class="ps-3 py-2.5">รหัสครุภัณฑ์</th>
-                                <th class="py-2.5">อาการชำรุด</th>
-                                <th class="py-2.5">ผู้แจ้ง</th>
-                                <th class="py-2.5">วันที่แจ้ง</th>
-                                <th class="py-2.5 text-end pe-3">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="trashTableBody">
-                            <!-- Items loaded via JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer border-top border-secondary border-opacity-25 p-2">
-                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-4" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- SweetAlert2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <script>
 let rawMaintenanceData = [];
 
@@ -221,11 +45,17 @@ async function loadMaintenanceData() {
         if (!res.ok) return;
         rawMaintenanceData = await res.json();
 
-        // คำนวณยอด KPI
+        // ✅ แก้ไข: เพิ่มการกรองสถานะ "เควสใหม่" และสถานะภาษาไทยให้ครบถ้วน
         document.getElementById('countTotal').innerText = rawMaintenanceData.length;
-        document.getElementById('countPending').innerText = rawMaintenanceData.filter(i => i.status === 'Pending' || i.status === 'รอดำเนินการ').length;
-        document.getElementById('countProgress').innerText = rawMaintenanceData.filter(i => i.status === 'In Progress' || i.status === 'กำลังซ่อม').length;
-        document.getElementById('countCompleted').innerText = rawMaintenanceData.filter(i => i.status === 'Completed' || i.status === 'ซ่อมเสร็จแล้ว').length;
+        document.getElementById('countPending').innerText = rawMaintenanceData.filter(i => 
+            ['Pending', 'pending', 'รอดำเนินการ', 'เควสใหม่'].includes(i.status)
+        ).length;
+        document.getElementById('countProgress').innerText = rawMaintenanceData.filter(i => 
+            ['In Progress', 'in progress', 'กำลังซ่อม', 'กำลังทำเควส'].includes(i.status)
+        ).length;
+        document.getElementById('countCompleted').innerText = rawMaintenanceData.filter(i => 
+            ['Completed', 'completed', 'ซ่อมเสร็จแล้ว', 'สำเร็จแล้ว', 'Done'].includes(i.status)
+        ).length;
 
         renderTable(rawMaintenanceData);
         updateTrashBadge();
@@ -252,14 +82,14 @@ function renderTable(data) {
         let statusBadge = '';
         let actionButtons = '';
 
-        if (item.status === 'Completed' || item.status === 'ซ่อมเสร็จแล้ว') {
+        if (['Completed', 'completed', 'ซ่อมเสร็จแล้ว', 'สำเร็จแล้ว'].includes(item.status)) {
             statusBadge = `
                 <span class="badge status-badge-completed px-3 py-2 rounded-pill">
                     <i class="bi bi-check-circle-fill me-1"></i> สำเร็จแล้ว
                 </span>`;
             actionButtons = `<span class="badge bg-success bg-opacity-25 text-success px-3 py-1.5 rounded-pill" title="ภารกิจเสร็จสิ้น"><i class="bi bi-shield-check me-1"></i> เควสสำเร็จ</span>`;
 
-        } else if (item.status === 'In Progress' || item.status === 'กำลังซ่อม') {
+        } else if (['In Progress', 'in progress', 'กำลังซ่อม'].includes(item.status)) {
             statusBadge = `
                 <span class="badge status-badge-progress px-3 py-2 rounded-pill">
                     <i class="bi bi-tools me-1"></i> กำลังดำเนินการ
@@ -269,7 +99,7 @@ function renderTable(data) {
                     <i class="bi bi-check2-circle"></i> ซ่อมเสร็จแล้ว
                 </button>`;
 
-        } else { // Pending / รอดำเนินการ
+        } else { // เควสใหม่ / Pending / รอดำเนินการ
             statusBadge = `
                 <span class="badge status-badge-pending px-3 py-2 rounded-pill">
                     <i class="bi bi-hourglass-split me-1"></i> เควสใหม่
@@ -280,7 +110,6 @@ function renderTable(data) {
                 </button>`;
         }
 
-        // ปุ่มย้ายลงถังขยะ (Soft Delete)
         const deleteBtn = `
             <button class="btn btn-sm btn-outline-danger rounded-circle ms-1 p-1" style="width: 31px; height: 31px;" title="ย้ายลงถังขยะ" onclick="softDeleteQuest(${item.id}, '${item.asset_id}')">
                 <i class="bi bi-trash-fill"></i>
@@ -568,10 +397,9 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
     renderTable(filtered);
 });
 
-// เริ่มต้นโหลดข้อมูล
+// ✅ แก้ไข: ปรับเวลา Auto-Refresh เพิ่มเป็น 30 วินาที (30000ms) เพื่อป้องกัน Server หนักเกินไป
 document.addEventListener('DOMContentLoaded', () => {
     loadMaintenanceData();
-    setInterval(loadMaintenanceData, 8000);
+    setInterval(loadMaintenanceData, 30000);
 });
 </script>
-{% endblock %}
